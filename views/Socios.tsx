@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   UserPlus, Save, Trash2, ChevronLeft, ChevronRight, 
   Upload, Printer, X, FileSignature, Table as TableIcon,
-  FileText, Download, Check
+  FileText, Download, Check, Search, User as UserIcon
 } from 'lucide-react';
 import { Member, TabType, DocumentTemplate } from '../types';
 import { useApp } from '../AppContext';
@@ -21,6 +21,21 @@ export const SociosView: React.FC = () => {
   const [currentMember, setCurrentMember] = useState<Member>(currentIndex >= 0 ? members[currentIndex] : EMPTY_MEMBER);
   const [activeTab, setActiveTab] = useState<TabType>('frente');
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  
+  // Estados para Busca/Autocomplete
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -39,7 +54,7 @@ export const SociosView: React.FC = () => {
   };
 
   const handleNew = () => {
-    setCurrentMember({ ...EMPTY_MEMBER, id: Date.now().toString() });
+    setCurrentMember({ ...EMPTY_MEMBER, id: crypto.randomUUID(), registration: '', fullName: '' });
     setCurrentIndex(-1);
     setActiveTab('frente');
   };
@@ -53,16 +68,20 @@ export const SociosView: React.FC = () => {
     setCurrentMember(members[nextIdx]);
   };
 
-  const triggerPicker = (e: React.MouseEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-    try {
-      if (typeof (input as any).showPicker === 'function') {
-        (input as any).showPicker();
-      }
-    } catch (err) {
-      console.warn("Picker failed:", err);
+  const handleSelectSuggestion = (member: Member) => {
+    const idx = members.findIndex(m => m.id === member.id);
+    if (idx !== -1) {
+      setCurrentIndex(idx);
+      setCurrentMember(members[idx]);
+      setSearchTerm('');
+      setShowSuggestions(false);
     }
   };
+
+  const filteredSuggestions = searchTerm.trim() === '' ? [] : members.filter(m => 
+    m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.registration.toLowerCase().includes(searchTerm.toLowerCase())
+  ).slice(0, 8);
 
   const generateMemberDoc = (template: DocumentTemplate) => {
     const replacements: Record<string, string> = {
@@ -123,16 +142,16 @@ export const SociosView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-32">
-      {/* Modal de Seleção de Documento */}
+      {/* Modal de Documentos oculto por brevidade */}
       {isDocModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">Gerar Documento</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Selecione o modelo para o associado: <span className="text-blue-600">{currentMember.fullName || 'Novo'}</span></p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Selecione o modelo para: <span className="text-blue-600">{currentMember.fullName || 'Novo'}</span></p>
               </div>
-              <button onClick={() => setIsDocModalOpen(false)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-colors shadow-sm border border-transparent hover:border-slate-200">
+              <button onClick={() => setIsDocModalOpen(false)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -155,31 +174,80 @@ export const SociosView: React.FC = () => {
                   <Download size={18} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                 </button>
               )) : (
-                <div className="py-12 text-center">
-                  <FileText size={48} className="mx-auto text-slate-200 mb-4" />
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum modelo cadastrado.</p>
-                  <p className="text-[10px] text-slate-300 uppercase mt-2">Vá ao Editor de Modelos para criar um.</p>
-                </div>
+                <div className="py-12 text-center text-slate-300">Nenhum modelo disponível.</div>
               )}
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-              <button onClick={() => setIsDocModalOpen(false)} className="px-8 py-3 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
+              <button onClick={() => setIsDocModalOpen(false)} className="px-8 py-3 rounded-xl text-[10px] font-black uppercase text-slate-400">Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Barra de Navegação de Registros */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('prev')} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
-          <div className="px-5 py-2 bg-slate-50 border rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest">
-            REGISTRO {currentIndex + 1} DE {members.length}
+      {/* Barra de Busca e Navegação Superior */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-white p-4 rounded-[32px] border border-slate-200 shadow-sm relative z-[60]">
+        {/* Título */}
+        <div className="md:col-span-3 flex items-center gap-4 pl-4">
+          <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-600/20">
+            <UserPlus size={18} />
           </div>
-          <button onClick={() => navigate('next')} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Sócios</h2>
         </div>
-        <div className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase border ${currentMember.status === 'Ativo' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-          {currentMember.status || 'STATUS'}
+
+        {/* Autocomplete de Busca */}
+        <div className="md:col-span-6 relative" ref={searchRef}>
+          <div className="relative group">
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+              <Search size={18} />
+            </div>
+            <input 
+              type="text" 
+              placeholder="Pesquisar por Inscrição ou Nome do Sócio..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 pl-14 pr-6 text-xs font-bold uppercase tracking-widest outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all"
+            />
+          </div>
+
+          {/* Lista de Sugestões */}
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="max-h-72 overflow-y-auto">
+                {filteredSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
+                  >
+                    <div className="bg-slate-100 p-2 rounded-lg text-slate-400 group-hover:bg-white group-hover:text-blue-600 transition-colors">
+                      <UserIcon size={16} />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{suggestion.fullName}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Inscrição: {suggestion.registration || 'Pendente'}</span>
+                    </div>
+                    <ChevronRight size={14} className="ml-auto text-slate-300 group-hover:text-blue-600 transition-all" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navegação de Registros */}
+        <div className="md:col-span-3 flex justify-end items-center gap-2 pr-2">
+          <button onClick={() => navigate('prev')} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><ChevronLeft size={20} /></button>
+          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            {currentIndex + 1} / {members.length}
+          </div>
+          <button onClick={() => navigate('next')} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><ChevronRight size={20} /></button>
+          <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border ml-2 ${currentMember.status === 'Ativo' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+            {currentMember.status || 'STATUS'}
+          </div>
         </div>
       </div>
 
@@ -355,7 +423,6 @@ export const SociosView: React.FC = () => {
                             type="date" 
                             className="w-full p-2 bg-transparent outline-none cursor-pointer" 
                             value={d.birthDate} 
-                            onMouseDown={triggerPicker}
                             onChange={e => setCurrentMember(p => ({...p, dependents: p.dependents.map(x => x.id === d.id ? {...x, birthDate: e.target.value} : x)}))} 
                           />
                         </td>

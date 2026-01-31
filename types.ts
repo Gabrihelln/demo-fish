@@ -3,11 +3,12 @@ export type UserRole = 'SUPER_ADMIN' | 'REGION_USER';
 
 export interface Tenant {
   id: string;
-  name: string; // Nome da Cidade ou Associação
+  name: string;
   adminUsername: string;
-  adminPassword?: string; // Senha para acesso regional
+  adminPassword?: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string; // Para controle de sync
 }
 
 export interface AuthSession {
@@ -15,7 +16,7 @@ export interface AuthSession {
     id: string;
     username: string;
     role: UserRole;
-    tenantId?: string; // Se for REGION_USER, pertence a esta cidade
+    tenantId?: string;
     cityName?: string;
   } | null;
 }
@@ -29,17 +30,21 @@ export interface Dependent {
 
 export interface DocumentTemplate {
   id: string;
-  tenantId: string; // Pertence a qual cidade
+  tenantId: string;
   name: string;
   category: string;
   header: string;
   content: string;
   footer: string;
+  updatedAt?: string;
 }
 
 export interface Member {
   id: string;
-  tenantId: string; // Pertence a qual cidade
+  tenantId: string;
+  updatedAt: string; // Crucial para migração e nuvem
+  isSynced: boolean; // Status de sincronização
+  
   // ABA 1 - FRENTE
   registration: string;
   oldRegistration: string;

@@ -34,7 +34,7 @@ export const Sidebar: React.FC = () => {
           label: 'Cadastro',
           icon: Users,
           children: [
-            { id: 'cadastro-socios', label: 'Inscrição de Sócios', icon: UserPlus },
+            { id: 'cadastro-socios', label: 'Sócios', icon: UserPlus },
             { id: 'cadastro-assunto', label: 'Assunto do Atendimento', icon: MessageSquare },
             { id: 'cadastro-atendente', label: 'Usuário Atendente', icon: UserCheck },
             { id: 'cadastro-pescado', label: 'Pescado', icon: Fish },
