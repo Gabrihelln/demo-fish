@@ -1,0 +1,7 @@
+{
+  "name": "Sistema de Gestão de Associados (SGA)",
+  "description": "Um sistema administrativo completo para inscrição e gestão de sócios, com suporte a documentação detalhada, dependentes e controle de embarcações.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
