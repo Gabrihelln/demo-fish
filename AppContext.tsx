@@ -86,7 +86,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       return createClient(cloudKeys.url, cloudKeys.key);
     } catch (e) {
-      console.error("Supabase error", e);
+      console.error("Supabase connection error:", e);
       return null;
     }
   };
@@ -104,7 +104,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     setCloudConnected(true);
     try {
-      // 1. Sincronizar Tenants (Unidades)
       const { data: dbTenants } = await supabase.from('tenants').select('*');
       if (dbTenants) {
         const mappedTenants: Tenant[] = dbTenants.map(t => ({
@@ -112,15 +111,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           name: t.name,
           adminUsername: t.admin_username,
           adminPassword: t.admin_password,
-          // Verifica se é true de forma flexível (aceita 'true', 1 ou true booleano)
-          isActive: String(t.is_active) === 'true' || t.is_active === true || t.is_active === 1,
+          isActive: t.is_active === true || t.is_active === 1 || String(t.is_active).toLowerCase() === 'true' || t.is_active === null,
           createdAt: t.created_at,
           updatedAt: t.updated_at || t.created_at
         }));
         setTenants(mappedTenants);
       }
 
-      // 2. Enviar Sócios pendentes (Tabela socios)
       const unsyncedMembers = members.filter(m => !m.isSynced);
       if (unsyncedMembers.length > 0) {
         const payload = unsyncedMembers.map(m => ({
@@ -128,16 +125,66 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           tenant_id: m.tenantId,
           full_name: m.fullName,
           registration: m.registration,
+          old_registration: m.oldRegistration,
+          birth_date: m.birthDate && m.birthDate.length >= 10 ? m.birthDate : null,
+          nickname: m.nickname,
+          father_name: m.fatherName,
+          mother_name: m.motherName,
+          marital_status: m.maritalStatus,
+          nationality: m.nationality,
+          naturalness: m.naturalness,
+          uf_naturalness: m.uf,
+          street: m.street,
+          number: m.number,
+          neighborhood: m.neighborhood,
+          city: m.city,
+          address_uf: m.addressUf,
+          cep: m.cep,
+          phone: m.phone,
+          profession: m.profession,
+          workplace: m.workplace,
+          literate: m.literate,
+          rg: m.rg,
+          rg_uf: m.rgUf,
+          rg_expedition_date: m.rgExpeditionDate && m.rgExpeditionDate.length >= 10 ? m.rgExpeditionDate : null,
           cpf: m.cpf,
+          ctps: m.ctps,
+          ctps_series: m.ctpsSeries,
+          ctps_expedition_date: m.ctpsExpeditionDate && m.ctpsExpeditionDate.length >= 10 ? m.ctpsExpeditionDate : null,
+          voter_id: m.voterId,
+          voter_zone: m.voterZone,
+          voter_section: m.voterSection,
+          cir: m.cir,
+          boat_name: m.boatName,
+          boat_rgp: m.boatRgp,
+          boat_uf: m.boatUf,
+          boat_ab: m.boatAb,
+          boat_crew_count: m.boatCrewCount,
+          owner_cpf: m.ownerCpf,
+          incra_number: m.incraNumber,
+          farm_area: m.farmArea,
+          book: m.book,
+          page: m.page,
+          term_number: m.termNumber,
+          nit: m.nit,
+          pis: m.pis,
+          cei: m.cei,
+          caepf: m.caepf,
+          federal_property_number: m.federalPropertyNumber,
+          rgp_emission_date: m.rgpEmissionDate && m.rgpEmissionDate.length >= 10 ? m.rgpEmissionDate : null,
           status: m.status,
+          photo_url: m.photoUrl,
+          last_month_paid: m.lastMonthPaid,
+          benefit_number: m.benefitNumber,
+          species: m.species,
+          family_member_count: m.familyMemberCount,
+          family_income: m.familyIncome,
           updated_at: m.updatedAt,
           data_raw: m
         }));
-        
         await supabase.from('socios').upsert(payload);
       }
 
-      // 3. Baixar Sócios atualizados da unidade
       if (session.user?.tenantId) {
         const { data: remoteMembers } = await supabase
           .from('socios')
@@ -170,12 +217,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSession({ user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } });
       return true;
     }
-    
     const tenant = tenants.find(t => t.adminUsername === username && t.adminPassword === pass);
-    
     if (tenant) {
       if (!tenant.isActive) {
-        alert("Acesso Negado: Esta unidade está bloqueada. Contate o administrador master.");
+        alert("Esta unidade está temporariamente bloqueada.");
         return false;
       }
       setSession({ 
@@ -249,9 +294,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createdAt: new Date().toISOString(), 
         updatedAt: new Date().toISOString() 
     };
-    
     setTenants(prev => [...prev, newTenant]);
-    
     const supabase = getSupabase();
     if (supabase) {
         await supabase.from('tenants').insert([{
@@ -267,10 +310,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleTenantStatus = async (id: string) => {
     const tenant = tenants.find(t => t.id === id);
     if (!tenant) return;
-    
     const newStatus = !tenant.isActive;
     setTenants(prev => prev.map(t => t.id === id ? { ...t, isActive: newStatus } : t));
-    
     const supabase = getSupabase();
     if (supabase) {
         await supabase.from('tenants').update({ is_active: newStatus }).eq('id', id);

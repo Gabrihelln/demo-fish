@@ -26,5 +26,6 @@ export const STATUS_OPTIONS = ['Ativo', 'Inativo', 'Suspenso', 'Aposentado', 'Fa
 export const EMPTY_MEMBER: any = {
   id: '', registration: '', oldRegistration: '', locality: '', reRegistrationDate: '', registrationDate: '', birthDate: '', fullName: '', nickname: '', fatherName: '', motherName: '', nationality: '', naturalness: '', uf: '', profession: '', workplace: '', email: '', street: '', number: '', neighborhood: '', city: '', addressUf: '', cep: '', phone: '', dapNumber: '', group: '', validityDate: '', category: '', sus: '', bloodType: '', photoUrl: '',
   maritalStatus: '', literate: '', rg: '', rgUf: '', rgExpeditionDate: '', cpf: '', ctps: '', ctpsSeries: '', ctpsExpeditionDate: '', voterId: '', voterZone: '', voterSection: '', caepf: '', sex: '', pis: '', cei: '', nit: '', rgpMma: '', rgpEmissionDate: '', boatName: '', boatRgp: '', boatUf: '', boatAb: '', boatCrewCount: '', ownerCpf: '', status: '', lastMonthPaid: '', benefitNumber: '', species: '', deathDate: '', transferDate: '', transferDestination: '', firstMonthPaid: '', mpaStatus: '', gpsCode: '', gpsPassword: '', inssPassword: '',
-  associateFolder: '', boatFolder: '', defenseFish: '', otherDocs: '', dependents: [], observations: ''
+  associateFolder: '', boatFolder: '', defenseFish: '', otherDocs: '', dependents: [], observations: '',
+  cir: '', federalPropertyNumber: '', incraNumber: '', farmArea: '', book: '', page: '', termNumber: '', familyMemberCount: '', familyIncome: '', delegateCode: '', communityCode: ''
 };

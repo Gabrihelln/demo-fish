@@ -8,7 +8,7 @@ export interface Tenant {
   adminPassword?: string;
   isActive: boolean;
   createdAt: string;
-  updatedAt: string; // Para controle de sync
+  updatedAt: string;
 }
 
 export interface AuthSession {
@@ -42,8 +42,8 @@ export interface DocumentTemplate {
 export interface Member {
   id: string;
   tenantId: string;
-  updatedAt: string; // Crucial para migração e nuvem
-  isSynced: boolean; // Status de sincronização
+  updatedAt: string;
+  isSynced: boolean;
   
   // ABA 1 - FRENTE
   registration: string;
@@ -115,6 +115,19 @@ export interface Member {
   gpsCode: string;
   gpsPassword: string;
   inssPassword: string;
+
+  // CAMPOS ESPECÍFICOS DA MIGRAÇÃO (JSON DO USUÁRIO)
+  cir: string;
+  federalPropertyNumber: string;
+  incraNumber: string;
+  farmArea: string;
+  book: string;
+  page: string;
+  termNumber: string;
+  familyMemberCount: string;
+  familyIncome: string;
+  delegateCode: string;
+  communityCode: string;
 
   // ABA 3 - VERSO
   associateFolder: string;
