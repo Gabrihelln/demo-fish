@@ -28,7 +28,6 @@ export const AdminPanelView: React.FC = () => {
   
   const [tempKeys, setTempKeys] = useState({ url: cloudKeys.url, key: cloudKeys.key });
 
-  // Auto-selecionar tenant se houver apenas um ou se for usuário regional
   useEffect(() => {
     if (session.user?.role === 'REGION_USER' && session.user.tenantId) {
       setSelectedTargetTenant(session.user.tenantId);
@@ -45,10 +44,10 @@ export const AdminPanelView: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const sample = json[0];
       
-      const prompt = `Analise este registro de banco de dados: ${JSON.stringify(sample)}. 
-      Crie um objeto JSON de mapeamento onde a CHAVE é o nome do campo original e o VALOR é o campo correspondente na nossa nova interface Member.
-      Campos de destino: registration, registrationDate, fullName, nickname, fatherName, motherName, maritalStatus, nationality, naturalness, uf, street, number, neighborhood, city, addressUf, cep, phone, profession, workplace, literate, rg, rgUf, rgExpeditionDate, cpf, ctps, ctpsSeries, ctpsExpeditionDate, voterId, voterZone, voterSection, caepf, pis, nit, cei, rgpMma, rgpEmissionDate, status, photoUrl.
-      Retorne APENAS o JSON do mapeamento.`;
+      const prompt = `Analise este registro de sócio: ${JSON.stringify(sample)}. 
+      Crie um mapeamento JSON onde a CHAVE é o campo do seu arquivo e o VALOR é o campo equivalente no sistema atual.
+      Campos de destino aceitos: registration, registrationDate, fullName, nickname, fatherName, motherName, maritalStatus, nationality, naturalness, uf, street, number, neighborhood, city, addressUf, cep, phone, profession, workplace, literate, rg, rgUf, rgExpeditionDate, cpf, ctps, ctpsSeries, ctpsExpeditionDate, voterId, voterZone, voterSection, caepf, pis, nit, cei, rgpMma, rgpEmissionDate, status, photoUrl.
+      Retorne APENAS o objeto JSON de mapeamento.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -59,7 +58,7 @@ export const AdminPanelView: React.FC = () => {
       const suggestedMapping = JSON.parse(cleanedResponse);
       
       setMapping(suggestedMapping);
-      setAuditLog(prev => [...prev, "Mapeamento Sugerido gerado com sucesso.", "IA identificou correspondência para " + Object.keys(suggestedMapping).length + " campos."]);
+      setAuditLog(prev => [...prev, "Inteligência Artificial concluiu o mapeamento.", "Correspondência automática para " + Object.keys(suggestedMapping).length + " colunas de dados."]);
     } catch (err) {
       console.error("AI Error:", err);
       setAuditLog(prev => [...prev, "Aviso: Falha na IA. Usando mapeamento manual padrão."]);
@@ -70,11 +69,9 @@ export const AdminPanelView: React.FC = () => {
         "Apelido": "nickname",
         "Pai": "fatherName",
         "Mae": "motherName",
-        "Estado Civil": "maritalStatus",
         "RG": "rg",
         "SSP": "rgUf",
-        "CPF": "cpf",
-        "NIT": "nit"
+        "CPF": "cpf"
       });
     } finally {
       setIsAuditing(false);
@@ -93,7 +90,7 @@ export const AdminPanelView: React.FC = () => {
         setPendingData(dataArray);
         await auditDataWithAI(dataArray);
       } catch (err) {
-        alert("Erro ao ler JSON: Arquivo inválido.");
+        alert("Erro ao ler JSON: Certifique-se que o arquivo é um JSON válido.");
       }
     };
     reader.readAsText(file);
@@ -101,12 +98,12 @@ export const AdminPanelView: React.FC = () => {
 
   const finalizeImport = () => {
     if (!pendingData || !selectedTargetTenant) {
-      alert("Por favor, selecione uma Unidade de Destino antes de confirmar.");
+      alert("Selecione a Unidade de Destino antes de confirmar a migração.");
       return;
     }
 
     setIsImporting(true);
-    setAuditLog(prev => [...prev, "Iniciando conversão de registros..."]);
+    setAuditLog(prev => [...prev, "Processando registros..."]);
 
     try {
       const converted: Member[] = pendingData.map(oldItem => {
@@ -122,9 +119,7 @@ export const AdminPanelView: React.FC = () => {
         Object.entries(mapping).forEach(([oldKey, newKey]) => {
           let value = oldItem[oldKey];
           if (value === null || value === undefined) value = '';
-          if (typeof value === 'string' && value.includes('00:00:00')) {
-            value = value.split(' ')[0];
-          }
+          if (typeof value === 'string' && value.includes('00:00:00')) value = value.split(' ')[0];
           newItem[newKey] = String(value);
         });
 
@@ -132,12 +127,12 @@ export const AdminPanelView: React.FC = () => {
       });
 
       importMembers(converted);
-      alert(`${converted.length} sócios migrados com sucesso para a unidade selecionada!`);
+      alert(`${converted.length} sócios foram migrados com sucesso para a unidade selecionada!`);
       setPendingData(null);
       setMapping({});
     } catch (err) {
-      console.error("Migration Error:", err);
-      alert("Erro crítico na conversão. Verifique o console.");
+      console.error("Erro na Migração:", err);
+      alert("Falha ao converter dados. Verifique a estrutura do arquivo.");
     } finally {
       setIsImporting(false);
     }
@@ -145,7 +140,7 @@ export const AdminPanelView: React.FC = () => {
 
   const handleSaveKeys = () => {
     updateCloudKeys(tempKeys.url, tempKeys.key);
-    alert("Configurações Cloud salvas!");
+    alert("Configurações de nuvem atualizadas!");
   };
 
   return (
@@ -153,7 +148,7 @@ export const AdminPanelView: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Central de Migração e Cloud</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">SGA Smart Migrator v2.0</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">SGA Smart Migrator v2.1</p>
         </div>
         <div className="flex gap-3">
            <button 
@@ -168,7 +163,6 @@ export const AdminPanelView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Card Supabase */}
         <div className="bg-white border border-slate-200 rounded-[48px] p-10 shadow-sm relative overflow-hidden">
           <div className="flex items-center gap-4 mb-8">
             <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-lg">
@@ -210,7 +204,6 @@ export const AdminPanelView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card Migração */}
         <div className="lg:col-span-2 bg-white border border-slate-200 rounded-[48px] p-10 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
             <Sparkles size={120} className="text-blue-600" />
@@ -234,7 +227,6 @@ export const AdminPanelView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-6">
-               {/* Seletor de Destino */}
                <div className="bg-blue-50/50 border border-blue-100 rounded-[32px] p-6">
                   <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 block ml-2">Unidade de Destino dos Dados</label>
                   <div className="relative">
@@ -252,16 +244,11 @@ export const AdminPanelView: React.FC = () => {
                       <ChevronDown size={18} />
                     </div>
                   </div>
-                  {tenants.length === 0 && (
-                    <p className="text-[9px] text-red-500 font-bold uppercase mt-2 ml-2 flex items-center gap-1">
-                      <AlertTriangle size={10} /> Crie uma Unidade na tabela abaixo antes de migrar.
-                    </p>
-                  )}
                </div>
 
                <div className="bg-slate-950 rounded-[32px] p-8 font-mono text-[10px] text-emerald-400 overflow-y-auto max-h-[200px] border border-white/10">
                   <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2 text-white/50">
-                    <Sparkles size={12} /> <span>LOG DE AUDITORIA</span>
+                    <Sparkles size={12} /> <span>LOG DE AUDITORIA DE SÓCIOS</span>
                   </div>
                   {auditLog.map((log, i) => (
                     <div key={i} className="mb-1 flex gap-2">
@@ -278,7 +265,7 @@ export const AdminPanelView: React.FC = () => {
                     disabled={isImporting || isAuditing || !selectedTargetTenant}
                     className="flex-1 bg-emerald-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-900/10"
                   >
-                    {isImporting ? "Convertendo..." : `Confirmar Migração (${pendingData.length} registros)`}
+                    {isImporting ? "Convertendo..." : `Confirmar Migração (${pendingData.length} sócios)`}
                   </button>
                   <button onClick={() => setPendingData(null)} className="px-8 bg-slate-100 text-slate-500 rounded-[28px] font-black uppercase text-[10px] hover:bg-slate-200">Cancelar</button>
                </div>
@@ -351,9 +338,12 @@ export const AdminPanelView: React.FC = () => {
                   </td>
                   <td className="px-8 py-6 font-mono text-[10px] text-blue-600 font-bold">{t.id}</td>
                   <td className="px-8 py-6">
-                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border ${t.isActive ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-500 bg-red-50 border-red-100'}`}>
+                    <button 
+                      onClick={() => toggleTenantStatus(t.id)}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all ${t.isActive ? 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' : 'text-red-500 bg-red-50 border-red-100 hover:bg-red-100'}`}
+                    >
                       {t.isActive ? 'Ativo' : 'Bloqueado'}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-8 py-6 text-right space-x-2">
                     {session.user?.role === 'SUPER_ADMIN' && (

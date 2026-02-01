@@ -3,8 +3,6 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { Member, DocumentTemplate, Tenant, AuthSession } from './types';
 import { createClient } from '@supabase/supabase-js';
 
-// NOTA: Em produção, estas chaves devem vir de variáveis de ambiente seguras.
-// Assumindo que o ambiente proverá SUPABASE_URL e SUPABASE_ANON_KEY ou similar.
 const DEFAULT_SUPABASE_URL = (process.env as any).SUPABASE_URL || 'https://jqwsjwiuqtbqezsxnzxj.supabase.co';
 const DEFAULT_SUPABASE_KEY = (process.env as any).SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impxd3Nqd2l1cXRicWV6c3huenhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4OTYzNTEsImV4cCI6MjA4NTQ3MjM1MX0.tozJMzcTcILYxN6awBp3o4rSAKNUqf_CzgJ8Swc6FTI';
 
@@ -29,14 +27,13 @@ interface AppContextType {
   lastSync: string | null;
   syncData: () => Promise<void>;
   cloudConnected: boolean;
-  // Fix: Added missing properties to satisfy AdminPanel.tsx requirements
   cloudKeys: { url: string; key: string };
   updateCloudKeys: (url: string, key: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const STORAGE_MEMBERS = 'sga_members_v2';
+const STORAGE_SOCIOS = 'sga_socios_v2';
 const STORAGE_TEMPLATES = 'sga_templates_v2';
 const STORAGE_TENANTS = 'sga_tenants_v1';
 const STORAGE_SESSION = 'sga_session';
@@ -52,14 +49,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [cloudConnected, setCloudConnected] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('sga_last_sync'));
   
-  // Fix: Initialize cloudKeys from localStorage or defaults
   const [cloudKeys, setCloudKeys] = useState({
     url: localStorage.getItem(STORAGE_CLOUD_URL) || DEFAULT_SUPABASE_URL,
     key: localStorage.getItem(STORAGE_CLOUD_KEY) || DEFAULT_SUPABASE_KEY
   });
 
   useEffect(() => {
-    const savedMembers = localStorage.getItem(STORAGE_MEMBERS);
+    const savedMembers = localStorage.getItem(STORAGE_SOCIOS);
     const savedTemplates = localStorage.getItem(STORAGE_TEMPLATES);
     const savedTenants = localStorage.getItem(STORAGE_TENANTS);
     const savedSession = localStorage.getItem(STORAGE_SESSION);
@@ -79,19 +75,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_MEMBERS, JSON.stringify(members));
+    localStorage.setItem(STORAGE_SOCIOS, JSON.stringify(members));
     localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
     localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
     localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
   }, [members, templates, tenants, session]);
 
-  // Fix: Helper to get a dynamic Supabase client instance using current cloudKeys
   const getSupabase = () => {
     if (!cloudKeys.url || !cloudKeys.key) return null;
     try {
       return createClient(cloudKeys.url, cloudKeys.key);
     } catch (e) {
-      console.error("Supabase client initialization failed", e);
+      console.error("Supabase error", e);
       return null;
     }
   };
@@ -103,44 +98,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const syncData = async () => {
-    if (!navigator.onLine) return alert("Você está offline.");
+    if (!navigator.onLine) return;
     const supabase = getSupabase();
-    if (!supabase) return alert("Supabase não configurado corretamente. Verifique as chaves no Painel Admin.");
+    if (!supabase) return;
     
     setCloudConnected(true);
     try {
-      // 1. Sincronizar Tenants
+      // 1. Sincronizar Tenants (Unidades)
       const { data: dbTenants } = await supabase.from('tenants').select('*');
-      if (dbTenants) setTenants(dbTenants);
+      if (dbTenants) {
+        const mappedTenants: Tenant[] = dbTenants.map(t => ({
+          id: t.id,
+          name: t.name,
+          adminUsername: t.admin_username,
+          adminPassword: t.admin_password,
+          // Verifica se é true de forma flexível (aceita 'true', 1 ou true booleano)
+          isActive: String(t.is_active) === 'true' || t.is_active === true || t.is_active === 1,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at || t.created_at
+        }));
+        setTenants(mappedTenants);
+      }
 
-      // 2. Enviar Sócios não sincronizados
+      // 2. Enviar Sócios pendentes (Tabela socios)
       const unsyncedMembers = members.filter(m => !m.isSynced);
       if (unsyncedMembers.length > 0) {
         const payload = unsyncedMembers.map(m => ({
-          id: m.id.includes('migrated_') ? undefined : m.id,
+          id: m.id,
           tenant_id: m.tenantId,
           full_name: m.fullName,
           registration: m.registration,
           cpf: m.cpf,
           status: m.status,
           updated_at: m.updatedAt,
-          data_raw: m // Salva o objeto completo no JSONB para redundância
+          data_raw: m
         }));
         
-        const { error: mError } = await supabase.from('members').upsert(payload);
-        if (mError) throw mError;
+        await supabase.from('socios').upsert(payload);
       }
 
-      // 3. Baixar Sócios novos
+      // 3. Baixar Sócios atualizados da unidade
       if (session.user?.tenantId) {
         const { data: remoteMembers } = await supabase
-          .from('members')
+          .from('socios')
           .select('*')
           .eq('tenant_id', session.user?.tenantId);
         
         if (remoteMembers) {
           const merged = remoteMembers.map(rm => ({
-            ...rm.data_raw,
+            ...(rm.data_raw || {}),
             id: rm.id,
             tenantId: rm.tenant_id,
             isSynced: true
@@ -152,11 +158,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const now = new Date().toLocaleString('pt-BR');
       setLastSync(now);
       localStorage.setItem('sga_last_sync', now);
-      setCloudConnected(false);
-      alert("Nuvem Supabase atualizada com sucesso!");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Sync Error:", error);
-      alert("Erro na sincronização: " + error.message);
+    } finally {
       setCloudConnected(false);
     }
   };
@@ -166,9 +170,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSession({ user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } });
       return true;
     }
+    
     const tenant = tenants.find(t => t.adminUsername === username && t.adminPassword === pass);
-    if (tenant?.isActive) {
-      setSession({ user: { id: tenant.id, username: tenant.adminUsername, role: 'REGION_USER', tenantId: tenant.id, cityName: tenant.name } });
+    
+    if (tenant) {
+      if (!tenant.isActive) {
+        alert("Acesso Negado: Esta unidade está bloqueada. Contate o administrador master.");
+        return false;
+      }
+      setSession({ 
+        user: { 
+          id: tenant.id, 
+          username: tenant.adminUsername, 
+          role: 'REGION_USER', 
+          tenantId: tenant.id, 
+          cityName: tenant.name 
+        } 
+      });
       return true;
     }
     return false;
@@ -181,32 +199,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addMember = (m: Member) => {
     if (!session.user?.tenantId) return;
-    setMembers([...members, { 
+    const newMember = { 
       ...m, 
       id: m.id || crypto.randomUUID(), 
       tenantId: session.user.tenantId, 
       updatedAt: new Date().toISOString(),
       isSynced: false 
-    }]);
+    };
+    setMembers(prev => [...prev, newMember]);
   };
 
   const updateMember = (index: number, m: Member) => {
-    const newMembers = [...members];
-    const globalIdx = members.findIndex(orig => orig.id === m.id);
-    if (globalIdx !== -1) {
-      newMembers[globalIdx] = { ...m, updatedAt: new Date().toISOString(), isSynced: false };
-      setMembers(newMembers);
-    }
+    setMembers(prev => {
+      const idx = prev.findIndex(item => item.id === m.id);
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = { ...m, updatedAt: new Date().toISOString(), isSynced: false };
+      return updated;
+    });
   };
 
   const deleteMember = (index: number) => {
-    const filtered = getFilteredMembers();
-    const item = filtered[index];
-    if (item) {
-      setMembers(members.filter(m => m.id !== item.id));
+    const currentList = getFilteredMembers();
+    const itemToDelete = currentList[index];
+    if (itemToDelete) {
+      setMembers(prev => prev.filter(m => m.id !== itemToDelete.id));
       const supabase = getSupabase();
-      if (supabase && !item.id.includes('migrated')) {
-         supabase.from('members').delete().eq('id', item.id).then();
+      if (supabase) {
+         supabase.from('socios').delete().eq('id', itemToDelete.id).then();
       }
     }
   };
@@ -216,10 +236,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const clearDatabase = () => {
-    if (confirm('Deseja apagar TUDO da base local?')) setMembers([]);
+    if (confirm('Limpar base local?')) setMembers([]);
   };
 
-  const addTenant = (name: string, username: string, pass: string) => {
+  const addTenant = async (name: string, username: string, pass: string) => {
     const newTenant: Tenant = { 
         id: crypto.randomUUID(), 
         name, 
@@ -229,33 +249,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createdAt: new Date().toISOString(), 
         updatedAt: new Date().toISOString() 
     };
-    setTenants([...tenants, newTenant]);
+    
+    setTenants(prev => [...prev, newTenant]);
+    
     const supabase = getSupabase();
     if (supabase) {
-        supabase.from('tenants').insert([{
+        await supabase.from('tenants').insert([{
             id: newTenant.id,
             name: newTenant.name,
             admin_username: newTenant.adminUsername,
             admin_password: newTenant.adminPassword,
-            is_active: newTenant.isActive
-        }]).then();
+            is_active: true
+        }]);
     }
   };
 
-  const toggleTenantStatus = (id: string) => {
-    const updated = tenants.map(t => t.id === id ? { ...t, isActive: !t.isActive } : t);
-    setTenants(updated);
+  const toggleTenantStatus = async (id: string) => {
+    const tenant = tenants.find(t => t.id === id);
+    if (!tenant) return;
+    
+    const newStatus = !tenant.isActive;
+    setTenants(prev => prev.map(t => t.id === id ? { ...t, isActive: newStatus } : t));
+    
     const supabase = getSupabase();
     if (supabase) {
-        const tenant = updated.find(t => t.id === id);
-        supabase.from('tenants').update({ is_active: tenant?.isActive }).eq('id', id).then();
+        await supabase.from('tenants').update({ is_active: newStatus }).eq('id', id);
     }
   };
 
-  const deleteTenant = (id: string) => {
-    setTenants(tenants.filter(t => t.id !== id));
+  const deleteTenant = async (id: string) => {
+    setTenants(prev => prev.filter(t => t.id !== id));
     const supabase = getSupabase();
-    if (supabase) supabase.from('tenants').delete().eq('id', id).then();
+    if (supabase) await supabase.from('tenants').delete().eq('id', id);
   };
 
   const addTemplate = (t: DocumentTemplate) => {
@@ -304,6 +329,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
+  if (!context) throw new Error('useApp error');
   return context;
 };

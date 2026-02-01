@@ -1,29 +1,39 @@
 
 import React, { useState } from 'react';
-import { Users, Lock, User, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Users, Lock, User, ShieldCheck, ChevronRight, RefreshCw } from 'lucide-react';
 import { useApp } from '../AppContext';
 
 export const LoginView: React.FC = () => {
-  const { login } = useApp();
+  const { login, syncData } = useApp();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    
+    try {
+      // Sincroniza unidades antes de tentar o login para garantir que os dados estejam frescos
+      await syncData();
+      
       const success = login(username, password);
       if (!success) {
         alert("Credenciais inválidas ou acesso bloqueado.");
       }
+    } catch (err) {
+      // Se a sync falhar (ex: sem internet), tenta logar com o que tem local
+      const success = login(username, password);
+      if (!success) {
+        alert("Não foi possível conectar à nuvem e as credenciais locais falharam.");
+      }
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Decorativo */}
       <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600 rounded-full blur-[120px]" />
@@ -79,7 +89,11 @@ export const LoginView: React.FC = () => {
               disabled={isLoading}
               className="w-full bg-slate-900 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-600 hover:-translate-y-1 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
             >
-              {isLoading ? "Autenticando..." : (
+              {isLoading ? (
+                <>
+                  <RefreshCw className="animate-spin" size={16} /> Verificando Unidades...
+                </>
+              ) : (
                 <>
                   Entrar no Sistema <ChevronRight size={16} />
                 </>
