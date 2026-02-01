@@ -266,8 +266,13 @@ export const AdminPanelView: React.FC = () => {
                </div>
 
                <div className="bg-slate-900 rounded-[32px] p-6 font-mono text-[10px] text-emerald-400 overflow-y-auto max-h-[150px]">
-                  {auditLog.map((log, i) => <div key={i} className="mb-1 flex gap-2"><span className="text-slate-500">>></span><span>{log}</span></div>)}
-                  {cloudConnected && <div className="text-blue-400 animate-pulse mt-2">ENVIANDO PARA NUVEM SUPABASE...</div>}
+                  {auditLog.map((log, i) => (
+                    <div key={i} className="mb-1 flex gap-2">
+                      <span className="text-slate-500">{" >> "}</span>
+                      <span>{log}</span>
+                    </div>
+                  ))}
+                  {cloudConnected && <div className="text-blue-400 animate-pulse mt-2">{" >>> "} ENVIANDO PARA NUVEM SUPABASE...</div>}
                </div>
 
                <div className="flex gap-4">
