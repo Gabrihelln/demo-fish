@@ -28,7 +28,7 @@ export const Input: React.FC<FieldProps> = ({ label, name, value, onChange, type
 
   return (
     <div className={`flex flex-col space-y-1 ${className}`}>
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
       <input
         type={type}
         name={name}
@@ -36,7 +36,7 @@ export const Input: React.FC<FieldProps> = ({ label, name, value, onChange, type
         onChange={onChange}
         placeholder={placeholder}
         onMouseDown={triggerPicker}
-        className={`border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all ${type === 'date' ? 'cursor-pointer hover:border-blue-300' : ''}`}
+        className={`bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all ${type === 'date' ? 'cursor-pointer' : ''}`}
       />
     </div>
   );
@@ -44,12 +44,12 @@ export const Input: React.FC<FieldProps> = ({ label, name, value, onChange, type
 
 export const Select: React.FC<FieldProps> = ({ label, name, value, onChange, options = [], className = '' }) => (
   <div className={`flex flex-col space-y-1 ${className}`}>
-    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
     <select
       name={name}
       value={value}
       onChange={onChange}
-      className="border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-blue-300 transition-all"
+      className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all cursor-pointer"
     >
       <option value="">Selecione...</option>
       {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -59,14 +59,14 @@ export const Select: React.FC<FieldProps> = ({ label, name, value, onChange, opt
 
 export const TextArea: React.FC<FieldProps> = ({ label, name, value, onChange, placeholder, className = '' }) => (
   <div className={`flex flex-col space-y-1 ${className}`}>
-    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
     <textarea
       name={name}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       rows={4}
-      className="border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none hover:border-blue-300 transition-all"
+      className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all resize-none"
     />
   </div>
 );
