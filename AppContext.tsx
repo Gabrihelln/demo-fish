@@ -101,70 +101,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     setCloudConnected(true);
     try {
-      // 1. Sincronizar Unidades (Tenants)
+      // 1. Sincronizar Unidades
       const { data: dbTenants } = await supabase.from('tenants').select('*');
       if (dbTenants) {
-        const mappedTenants: Tenant[] = dbTenants.map(t => ({
+        setTenants(dbTenants.map(t => ({
           id: t.id,
           name: t.name,
           adminUsername: t.admin_username,
           adminPassword: t.admin_password,
-          isActive: t.is_active === true || t.is_active === 1 || String(t.is_active).toLowerCase() === 'true' || t.is_active === null,
+          isActive: t.is_active !== false,
           createdAt: t.created_at,
           updatedAt: t.updated_at || t.created_at
-        }));
-        setTenants(mappedTenants);
+        })));
       }
 
       // 2. Enviar Sócios não sincronizados
-      const unsyncedMembers = members.filter(m => !m.isSynced);
-      if (unsyncedMembers.length > 0) {
-        const payload = unsyncedMembers.map(m => ({
-          id: m.id,
-          tenant_id: m.tenantId,
-          full_name: m.fullName,
-          registration: m.registration,
-          birth_date: (m.birthDate && m.birthDate.length >= 10) ? m.birthDate : null,
-          cpf: m.cpf,
-          rg: m.rg,
-          phone: m.phone,
-          status: m.status || 'Ativo',
-          updated_at: new Date().toISOString(),
-          data_raw: m // Salva o objeto completo em JSONB para segurança
-        }));
+      const unsynced = members.filter(m => !m.isSynced);
+      if (unsynced.length > 0) {
+        const payload = unsynced.map(m => {
+          const { isSynced, photoUrl, dependents, ...rest } = m;
+          const cleaned: any = {};
+          Object.entries(rest).forEach(([k, v]) => {
+            cleaned[k] = (v === "" || v === undefined) ? null : v;
+          });
+          return cleaned;
+        });
 
-        const { error: upsertError } = await supabase.from('socios').upsert(payload);
-        if (upsertError) {
-          console.error("Erro no Upsert do Supabase:", upsertError);
-          throw upsertError;
-        }
-
-        // Marcar como sincronizado localmente após sucesso no servidor
-        setMembers(prev => prev.map(m => unsyncedMembers.some(um => um.id === m.id) ? { ...m, isSynced: true } : m));
+        const { error } = await supabase.from('socios').upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+        
+        setMembers(prev => prev.map(m => unsynced.some(u => u.id === m.id) ? { ...m, isSynced: true } : m));
       }
 
-      // 3. Baixar atualizações da nuvem (se logado como unidade específica)
+      // 3. Baixar Sócios da Unidade logada
       if (session.user?.tenantId) {
-        const { data: remoteMembers, error: fetchError } = await supabase
-          .from('socios')
-          .select('*')
-          .eq('tenant_id', session.user.tenantId);
-        
-        if (remoteMembers) {
-          const remoteAsMembers = remoteMembers.map(rm => ({
-            ...(rm.data_raw || {}),
-            id: rm.id,
-            tenantId: rm.tenant_id,
-            fullName: rm.full_name,
-            registration: rm.registration,
-            cpf: rm.cpf,
-            isSynced: true
-          }));
-
+        const { data: remote } = await supabase.from('socios').select('*').eq('tenant_id', session.user.tenantId);
+        if (remote) {
+          const mapped = remote.map(rm => ({
+            ...rm,
+            isSynced: true,
+            photoUrl: rm.foto,
+            dependents: [] 
+          } as Member));
+          
           setMembers(prev => {
-            // Merge: mantém registros de outros tenants e atualiza os deste tenant
-            const others = prev.filter(m => m.tenantId !== session.user?.tenantId);
-            return [...others, ...remoteAsMembers];
+            const otherTenants = prev.filter(m => m.tenant_id !== session.user?.tenantId);
+            return [...otherTenants, ...mapped];
           });
         }
       }
@@ -174,7 +156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem('sga_last_sync', now);
       return true;
     } catch (error) {
-      console.error("Falha Crítica na Sincronização:", error);
+      console.error("Erro na sincronização:", error);
       return false;
     } finally {
       setCloudConnected(false);
@@ -188,68 +170,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const tenant = tenants.find(t => t.adminUsername === username && t.adminPassword === pass);
     if (tenant) {
-      if (!tenant.isActive) {
-        alert("Unidade Bloqueada.");
-        return false;
-      }
+      if (!tenant.isActive) return (alert("Unidade Bloqueada."), false);
       setSession({ user: { id: tenant.id, username: tenant.adminUsername, role: 'REGION_USER', tenantId: tenant.id, cityName: tenant.name } });
       return true;
     }
     return false;
   };
 
-  const logout = () => {
-    setSession({ user: null });
-    localStorage.removeItem(STORAGE_SESSION);
-  };
+  const logout = () => { setSession({ user: null }); localStorage.removeItem(STORAGE_SESSION); };
 
   const addMember = (m: Member) => {
     if (!session.user?.tenantId) return;
-    const newMember = { ...m, id: m.id || crypto.randomUUID(), tenantId: session.user.tenantId, updatedAt: new Date().toISOString(), isSynced: false };
-    setMembers(prev => [...prev, newMember]);
+    const newM = { ...m, id: m.id || crypto.randomUUID(), tenant_id: session.user.tenantId, updated_at: new Date().toISOString(), isSynced: false };
+    setMembers(prev => [...prev, newM]);
   };
 
   const updateMember = (index: number, m: Member) => {
     setMembers(prev => {
       const idx = prev.findIndex(item => item.id === m.id);
       if (idx === -1) return prev;
-      const updated = [...prev];
-      updated[idx] = { ...m, updatedAt: new Date().toISOString(), isSynced: false };
-      return updated;
+      const copy = [...prev];
+      copy[idx] = { ...m, updated_at: new Date().toISOString(), isSynced: false };
+      return copy;
     });
   };
 
   const deleteMember = (index: number) => {
-    const currentList = getFilteredMembers();
-    const itemToDelete = currentList[index];
-    if (itemToDelete) {
-      setMembers(prev => prev.filter(m => m.id !== itemToDelete.id));
-      if (supabase) supabase.from('socios').delete().eq('id', itemToDelete.id).then();
+    const list = getFilteredMembers();
+    const toDelete = list[index];
+    if (toDelete) {
+      setMembers(prev => prev.filter(m => m.id !== toDelete.id));
+      if (supabase) supabase.from('socios').delete().eq('id', toDelete.id).then();
     }
   };
 
-  const importMembers = (newMembers: Member[]) => {
-    setMembers(prev => [...prev, ...newMembers]);
-  };
-
+  const importMembers = (newList: Member[]) => setMembers(prev => [...prev, ...newList]);
   const clearDatabase = () => { if (confirm('Limpar?')) setMembers([]); };
 
   const addTenant = async (name: string, username: string, pass: string) => {
-    const newTenant: Tenant = { id: crypto.randomUUID(), name, adminUsername: username, adminPassword: pass, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    setTenants(prev => [...prev, newTenant]);
-    if (supabase) await supabase.from('tenants').insert([{ id: newTenant.id, name: newTenant.name, admin_username: newTenant.adminUsername, admin_password: newTenant.adminPassword, is_active: true }]);
+    const newT: Tenant = { id: crypto.randomUUID(), name, adminUsername: username, adminPassword: pass, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    setTenants(prev => [...prev, newT]);
+    if (supabase) await supabase.from('tenants').insert([{ id: newT.id, name: newT.name, admin_username: newT.adminUsername, admin_password: newT.adminPassword, is_active: true }]);
   };
 
   const toggleTenantStatus = async (id: string) => {
-    const tenant = tenants.find(t => t.id === id);
-    if (!tenant) return;
-    const newStatus = !tenant.isActive;
-    setTenants(prev => prev.map(t => t.id === id ? { ...t, isActive: newStatus } : t));
-    if (supabase) await supabase.from('tenants').update({ is_active: newStatus }).eq('id', id);
+    const t = tenants.find(x => x.id === id);
+    if (!t) return;
+    const ns = !t.isActive;
+    setTenants(prev => prev.map(x => x.id === id ? { ...x, isActive: ns } : x));
+    if (supabase) await supabase.from('tenants').update({ is_active: ns }).eq('id', id);
   };
 
   const deleteTenant = async (id: string) => {
-    setTenants(prev => prev.filter(t => t.id !== id));
+    setTenants(prev => prev.filter(x => x.id !== id));
     if (supabase) await supabase.from('tenants').delete().eq('id', id);
   };
 
@@ -261,14 +234,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteTemplate = (id: string) => {
-    setTemplates(templates.filter(t => t.id !== id));
+    setTemplates(templates.filter(x => x.id !== id));
     if (supabase) supabase.from('document_templates').delete().eq('id', id).then();
   };
 
   const getFilteredMembers = () => {
     if (!session.user) return [];
     if (session.user.role === 'SUPER_ADMIN') return members;
-    return members.filter(m => m.tenantId === session.user?.tenantId);
+    return members.filter(m => m.tenant_id === session.user?.tenantId);
   };
 
   return (

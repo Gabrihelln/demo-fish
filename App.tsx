@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './AppContext';
 import { NavigationProvider, useNavigation } from './NavigationContext';
 import { Sidebar } from './components/Sidebar';
@@ -11,11 +12,23 @@ import { LoginView } from './views/Login';
 import { AdminPanelView } from './views/AdminPanel';
 import { 
   Menu as MenuIcon, Settings, Wallet, Landmark, 
-  Wifi, WifiOff, RefreshCw, ShieldCheck
+  Wifi, WifiOff, RefreshCw, ShieldCheck, CheckCircle
 } from 'lucide-react';
 
 const HeaderStatus: React.FC = () => {
   const { isOnline, lastSync, syncData, session } = useApp();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleGlobalSync = async () => {
+    setIsSyncing(true);
+    const success = await syncData();
+    setIsSyncing(false);
+    if (success) {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    }
+  };
   
   return (
     <div className="flex items-center gap-4">
@@ -32,10 +45,15 @@ const HeaderStatus: React.FC = () => {
       </div>
 
       <button 
-        onClick={syncData}
-        className={`p-2.5 rounded-xl transition-all ${isOnline ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-100 text-slate-400'}`}
+        onClick={handleGlobalSync}
+        disabled={isSyncing}
+        className={`p-2.5 rounded-xl transition-all relative ${
+          showSuccess ? 'bg-emerald-50 text-emerald-600' :
+          isOnline ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-100 text-slate-400'
+        }`}
       >
-        <RefreshCw size={18} />
+        {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : 
+         showSuccess ? <CheckCircle size={18} className="animate-in zoom-in-50 duration-300" /> : <RefreshCw size={18} />}
       </button>
 
       <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all ${isOnline ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
@@ -52,7 +70,6 @@ const MainLayout: React.FC = () => {
   const { session } = useApp();
   const { activeView, setActiveView, setSidebarOpen } = useNavigation();
 
-  // Resetar view ao trocar de role
   useEffect(() => {
     if (session.user?.role === 'SUPER_ADMIN') {
       setActiveView('admin-panel');
@@ -64,7 +81,6 @@ const MainLayout: React.FC = () => {
   if (!session.user) return <LoginView />;
 
   const renderActiveView = () => {
-    // Rotas de Admin
     if (session.user?.role === 'SUPER_ADMIN') {
       switch (activeView) {
         case 'admin-panel': return <AdminPanelView />;
@@ -73,7 +89,6 @@ const MainLayout: React.FC = () => {
       }
     }
 
-    // Rotas de Usuário Normal
     switch (activeView) {
       case 'home': return <HomeView />;
       case 'cadastro-socios': return <SociosView />;
