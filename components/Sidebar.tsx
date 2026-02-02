@@ -2,18 +2,20 @@
 import React, { useState } from 'react';
 import { 
   Users, UserPlus, MessageSquare, MapPin, FileText, 
-  Settings, DollarSign, ChevronDown, ChevronRight, X,
-  AlertCircle, BarChart2, ArrowLeftRight, HelpCircle, LogOut,
-  UserCheck, Fish, ShieldAlert, Landmark, Box, Layers, ClipboardList,
-  Tags, Receipt, Briefcase, FileSignature, Files, Wallet, CalendarDays,
-  BookOpen, Globe, ShieldCheck, PieChart, TrendingUp, ShieldCheck as ShieldIcon
+  Settings, ChevronDown, ChevronRight, X,
+  AlertCircle, BarChart2, LogOut,
+  UserCheck, Fish, ShieldAlert, Landmark, Tags, Receipt, Wallet, 
+  CalendarDays, BookOpen, ShieldCheck as ShieldIcon,
+  Moon, Sun,
+  // Added missing icons used in the menu structure
+  FileSignature, Files
 } from 'lucide-react';
 import { useNavigation } from '../NavigationContext';
 import { useApp } from '../AppContext';
 import { MenuItem } from '../types';
 
 export const Sidebar: React.FC = () => {
-  const { activeView, setActiveView, isSidebarOpen, setSidebarOpen } = useNavigation();
+  const { activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode } = useNavigation();
   const { session, logout } = useApp();
   const [expanded, setExpanded] = useState<string[]>(['cadastro', 'documentos', 'pendencias', 'recebimentos', 'financeiro']);
 
@@ -117,7 +119,7 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className={`w-[360px] bg-slate-950 text-slate-400 flex flex-col fixed inset-y-0 left-0 z-[70] transition-transform duration-500 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full shadow-2xl'}`}>
+    <aside className={`w-[360px] bg-slate-950 dark:bg-black text-slate-400 flex flex-col fixed inset-y-0 left-0 z-[70] transition-transform duration-500 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full shadow-2xl'}`}>
       <div className="p-8 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20"><Users size={20} /></div>
@@ -131,13 +133,25 @@ export const Sidebar: React.FC = () => {
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
         {renderItems(MENU_STRUCTURE)}
       </nav>
-      <div className="p-6 border-t border-white/5">
-        <div className="bg-white/5 rounded-2xl p-4 flex items-center gap-4">
+      <div className="p-6 border-t border-white/5 space-y-4">
+        <button 
+          onClick={toggleDarkMode}
+          className="w-full flex items-center gap-4 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all group"
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-800 text-amber-400 group-hover:scale-110 transition-transform">
+            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-white">
+            {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
+          </span>
+        </button>
+
+        <div className="bg-white/5 rounded-2xl p-4 flex items-center gap-4 border border-white/5">
           <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-white font-black text-[10px]">
             {session.user?.username.charAt(0).toUpperCase()}
           </div>
-          <div className="flex flex-col">
-            <span className="text-white text-[9px] font-black uppercase tracking-widest truncate max-w-[150px]">{session.user?.cityName || session.user?.username}</span>
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-white text-[9px] font-black uppercase tracking-widest truncate">{session.user?.cityName || session.user?.username}</span>
             <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-tighter">Sessão Ativa</span>
           </div>
           <button onClick={() => logout()} className="ml-auto text-slate-500 hover:text-red-400 transition-colors">

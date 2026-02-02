@@ -150,7 +150,6 @@ export const AdminPanelView: React.FC = () => {
     const newMapping: Record<string, string> = {};
     const keys = Object.keys(sample);
     
-    // Pass 1: Prioritize exact matches for critical fields like CPF
     keys.forEach(key => {
       const normalizedKey = normalize(key);
       for (const [field, synonyms] of Object.entries(FIELD_MAP)) {
@@ -161,7 +160,6 @@ export const AdminPanelView: React.FC = () => {
       }
     });
 
-    // Pass 2: Fill in remaining fields with inclusive matches
     keys.forEach(key => {
       if (newMapping[key]) return;
       const normalizedKey = normalize(key);
@@ -207,7 +205,6 @@ export const AdminPanelView: React.FC = () => {
         Object.keys(mapping).forEach((oldKey) => {
           const newKey = mapping[oldKey];
           let value = oldItem[oldKey];
-          // Special cleaning for CPF to remove dots/dashes for consistency
           if (newKey === 'cpf' && typeof value === 'string') {
             value = value.replace(/\D/g, '');
           }
@@ -238,78 +235,80 @@ export const AdminPanelView: React.FC = () => {
       {/* FEEDBACK MODAL */}
       {feedback.isOpen && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} />
-          <div className="bg-white rounded-[48px] shadow-2xl p-12 max-w-md w-full text-center relative z-10 animate-in zoom-in-95 duration-300">
-            <div className={`w-24 h-24 ${feedback.success ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'} rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner`}>
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} />
+          <div className="bg-white dark:bg-slate-900 rounded-[48px] shadow-2xl p-12 max-w-md w-full text-center relative z-10 animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+            <div className={`w-24 h-24 ${feedback.success ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'} rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner`}>
               {feedback.success ? <CheckCircle size={48} /> : <X size={48} />}
             </div>
-            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-4">{feedback.type === 'migration' ? 'Migração Finalizada' : 'Nuvem Atualizada'}</h3>
-            <p className="text-sm font-medium text-slate-500 mb-8 leading-relaxed">
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">{feedback.type === 'migration' ? 'Migração Finalizada' : 'Nuvem Atualizada'}</h3>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
               {feedback.success ? (
                 <><span className="text-blue-600 font-black text-lg">{feedback.count}</span> registros processados com sucesso.</>
               ) : "Falha na comunicação. Verifique a conectividade com o Supabase."}
             </p>
-            <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all">Fechar</button>
+            <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all">Fechar</button>
           </div>
         </div>
       )}
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Administração SGA</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Gestão de Unidades e Sincronização Mestre</p>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Administração SGA</h2>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Gestão de Unidades e Sincronização Mestre</p>
         </div>
         <div className="flex gap-4">
-          <button onClick={handleSyncNow} disabled={isSyncing} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-blue-600 transition-all disabled:opacity-50 shadow-xl shadow-slate-900/10">
+          <button onClick={handleSyncNow} disabled={isSyncing} className="bg-slate-900 dark:bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-blue-600 transition-all disabled:opacity-50 shadow-xl shadow-slate-900/10">
             {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <Server size={18} />}
             {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white border rounded-[48px] overflow-hidden shadow-sm">
-        <div className="p-8 border-b bg-slate-50/50 flex justify-between items-center">
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[48px] overflow-hidden shadow-sm">
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex justify-between items-center">
+          <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-3">
             <Globe size={18} className="text-blue-600" /> Unidades Ativas
           </h3>
           <button onClick={() => setIsAddingTenant(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-transform shadow-lg shadow-blue-600/20">
             Nova Unidade
           </button>
         </div>
+        
         {isAddingTenant && (
-          <div className="p-8 bg-blue-50/10 border-b animate-in slide-in-from-top-4 duration-300">
+          <div className="p-8 bg-blue-50/10 dark:bg-blue-900/10 border-b border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-4 duration-300">
             <form className="grid grid-cols-1 md:grid-cols-4 gap-4" onSubmit={async e => {
               e.preventDefault();
               await addTenant(tenantFormData.name, tenantFormData.username, tenantFormData.password);
               setIsAddingTenant(false);
               setTenantFormData({ name: '', username: '', password: '' });
             }}>
-              <input type="text" placeholder="Nome Unidade" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 !bg-white !text-slate-900 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.name} onChange={e => setTenantFormData({...tenantFormData, name: e.target.value})} required />
-              <input type="text" placeholder="Login" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 !bg-white !text-slate-900 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.username} onChange={e => setTenantFormData({...tenantFormData, username: e.target.value})} required />
-              <input type="password" placeholder="Senha" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 !bg-white !text-slate-900 outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.password} onChange={e => setTenantFormData({...tenantFormData, password: e.target.value})} required />
+              <input type="text" placeholder="Nome Unidade" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.name} onChange={e => setTenantFormData({...tenantFormData, name: e.target.value})} required />
+              <input type="text" placeholder="Login" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.username} onChange={e => setTenantFormData({...tenantFormData, username: e.target.value})} required />
+              <input type="password" placeholder="Senha" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.password} onChange={e => setTenantFormData({...tenantFormData, password: e.target.value})} required />
               <button type="submit" className="bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/10">Criar Unidade</button>
             </form>
           </div>
         )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <tr>
-                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400">Cidade/Unidade</th>
-                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400">Usuário</th>
-                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400 text-right">Ações</th>
+                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Cidade/Unidade</th>
+                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Usuário</th>
+                <th className="px-8 py-5 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {tenants.map(t => (
-                <tr key={t.id} className="border-b hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-5 font-black text-xs uppercase text-slate-900">{t.name}</td>
-                  <td className="px-8 py-5 font-mono text-blue-600 text-xs">{t.adminUsername}</td>
+                <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td className="px-8 py-5 font-black text-xs uppercase text-slate-900 dark:text-slate-100">{t.name}</td>
+                  <td className="px-8 py-5 font-mono text-blue-600 dark:text-blue-400 text-xs">{t.adminUsername}</td>
                   <td className="px-8 py-5 text-right flex items-center justify-end gap-3">
-                    <button onClick={() => toggleTenantStatus(t.id)} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase ${t.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                    <button onClick={() => toggleTenantStatus(t.id)} className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase ${t.isActive ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'}`}>
                       {t.isActive ? 'Ativa' : 'Bloqueada'}
                     </button>
-                    <button onClick={() => deleteTenant(t.id)} className="text-slate-300 hover:text-red-500 transition-colors p-2"><Trash2 size={16} /></button>
+                    <button onClick={() => deleteTenant(t.id)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors p-2"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}
@@ -319,20 +318,21 @@ export const AdminPanelView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="bg-white border rounded-[40px] p-10 shadow-sm">
-          <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-3"><Key size={18} className="text-blue-600"/> Cloud</h3>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[40px] p-10 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-slate-800 dark:text-white flex items-center gap-3"><Key size={18} className="text-blue-600"/> Cloud</h3>
           <div className="space-y-4">
-            <input type="text" value={tempKeys.url} onChange={e => setTempKeys({...tempKeys, url: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[10px] font-bold outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all" placeholder="Supabase URL" />
-            <input type="password" value={tempKeys.key} onChange={e => setTempKeys({...tempKeys, key: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[10px] font-bold outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all" placeholder="Anon Key" />
+            <input type="text" value={tempKeys.url} onChange={e => setTempKeys({...tempKeys, url: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 text-[10px] font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 transition-all" placeholder="Supabase URL" />
+            <input type="password" value={tempKeys.key} onChange={e => setTempKeys({...tempKeys, key: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 text-[10px] font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 transition-all" placeholder="Anon Key" />
             <button onClick={() => updateCloudKeys(tempKeys.url, tempKeys.key)} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">Salvar Chaves</button>
           </div>
         </div>
-        <div className="lg:col-span-2 bg-white border rounded-[40px] p-10 shadow-sm">
-          <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-3"><Upload size={20} className="text-emerald-600"/> Importar JSON</h3>
+        
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[40px] p-10 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-slate-800 dark:text-white flex items-center gap-3"><Upload size={20} className="text-emerald-600"/> Importar JSON</h3>
           {!pendingData ? (
-            <div className="border-2 border-dashed border-slate-200 rounded-[32px] p-16 flex flex-col items-center justify-center bg-slate-50/50 relative hover:border-blue-400 group transition-all">
-              <Upload size={32} className="text-slate-300 group-hover:text-blue-600 mb-4 transition-colors" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clique ou arraste o arquivo JSON</p>
+            <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] p-16 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-800/30 relative hover:border-blue-400 group transition-all">
+              <Upload size={32} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 mb-4 transition-colors" />
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Clique ou arraste o arquivo JSON</p>
               <input type="file" accept=".json" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" title="Selecione o arquivo de sócios" />
             </div>
           ) : (
@@ -341,12 +341,12 @@ export const AdminPanelView: React.FC = () => {
                 <select 
                   value={selectedTargetTenant} 
                   onChange={e => setSelectedTargetTenant(e.target.value)} 
-                  className="w-full bg-blue-50 border border-blue-100 rounded-2xl p-5 text-xs font-black uppercase text-blue-700 outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all appearance-none cursor-pointer pr-12"
+                  className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-5 text-xs font-black uppercase text-blue-700 dark:text-blue-400 outline-none focus:ring-4 focus:ring-blue-600/10 transition-all appearance-none cursor-pointer pr-12"
                 >
                   <option value="" disabled className="text-slate-400">Escolha a Unidade de Destino...</option>
-                  {tenants.map(t => <option key={t.id} value={t.id} className="text-slate-900 bg-white">{t.name}</option>)}
+                  {tenants.map(t => <option key={t.id} value={t.id} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">{t.name}</option>)}
                 </select>
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600">
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600 dark:text-blue-400">
                   <ChevronDown size={20} />
                 </div>
               </div>
@@ -359,7 +359,7 @@ export const AdminPanelView: React.FC = () => {
                 >
                   Importar {pendingData.length} registros para {tenants.find(t => t.id === selectedTargetTenant)?.name || 'unidade'}
                 </button>
-                <button onClick={() => setPendingData(null)} className="px-10 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+                <button onClick={() => setPendingData(null)} className="px-10 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Cancelar</button>
               </div>
             </div>
           )}

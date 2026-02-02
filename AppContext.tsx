@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
 import { Member, DocumentTemplate, Tenant, AuthSession } from './types';
 import { createClient } from '@supabase/supabase-js';
 import { EMPTY_MEMBER } from './constants';
@@ -100,6 +100,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [cloudConnected, setCloudConnected] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('sga_last_sync'));
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
   
   const [cloudKeys, setCloudKeys] = useState({
     url: localStorage.getItem(STORAGE_CLOUD_URL) || DEFAULT_SUPABASE_URL,
@@ -115,11 +116,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [cloudKeys.url, cloudKeys.key]);
 
+  // Carregamento inicial de dados
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         const dbMembers = await getMembersFromDB();
-        if (dbMembers) setAllMembers(dbMembers);
+        if (dbMembers && dbMembers.length > 0) {
+          setAllMembers(dbMembers);
+        }
       } catch (e) { console.error("Erro IDB:", e); }
 
       try {
@@ -130,6 +134,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (sn) setTenants(JSON.parse(sn));
         if (ss) setSession(JSON.parse(ss));
       } catch (e) { console.error("Erro LS:", e); }
+      
+      setIsInitialLoadComplete(true);
     };
     loadInitialData();
     const handleStatus = () => setIsOnline(navigator.onLine);
@@ -141,17 +147,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
+  // Persistência automática no IndexedDB quando 'allMembers' muda
   useEffect(() => {
-    if (allMembers.length >= 0) {
+    // IMPORTANTE: Só salva se o carregamento inicial terminou, 
+    // para evitar que o estado inicial vazio [] limpe o banco de dados.
+    if (isInitialLoadComplete) {
       saveMembersToDB(allMembers).catch(console.error);
     }
-  }, [allMembers]);
+  }, [allMembers, isInitialLoadComplete]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
-    localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
-    localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
-  }, [templates, tenants, session]);
+    if (isInitialLoadComplete) {
+      localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
+      localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
+      localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
+    }
+  }, [templates, tenants, session, isInitialLoadComplete]);
 
   const updateCloudKeys = (url: string, key: string) => {
     setCloudKeys({ url, key });
@@ -163,7 +174,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member: any = { ...EMPTY_MEMBER };
     if (m && typeof m === 'object') {
       Object.keys(EMPTY_MEMBER).forEach(key => {
-        let val = m[key] !== undefined ? m[key] : (m[key === 'tenantId' ? 'tenant_id' : key]);
+        let val = m[key] !== undefined ? m[key] : (m[key === 'tenantId' ? 'tenant_id' : (key === 'tenant_id' ? 'tenantId' : key)]);
         
         if (key === 'dependents') {
           let deps = val;
@@ -175,7 +186,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           member.isSynced = !!val;
         } else if (DATE_FIELDS.includes(key)) {
           if (val && typeof val === 'string' && val !== "" && val !== "null") {
-            // Extrai apenas a parte YYYY-MM-DD caso venha com horário (YYYY-MM-DD HH:MM:SS)
             const match = val.match(/^(\d{4}-\d{2}-\d{2})/);
             member[key] = match ? match[1] : val;
           } else {
@@ -188,10 +198,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     if (!member.id || member.id === "") member.id = crypto.randomUUID();
     
-    // Prioriza o tenantId da sessão ativa se o objeto vier sem um
-    const activeTenantId = session.user?.tenantId || "";
+    // Sincroniza tenantId e tenant_id
     if (!member.tenantId || member.tenantId === "" || member.tenantId === "undefined") {
-        member.tenantId = activeTenantId;
+        member.tenantId = m.tenant_id || session.user?.tenantId || "";
     }
     member.tenant_id = member.tenantId;
     
@@ -205,6 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let freshTenants: Tenant[] = [];
     
     try {
+      // 1. Sincroniza Unidades (Tenants)
       const { data: dbTenants } = await supabase.from('tenants').select('*');
       if (dbTenants) {
         freshTenants = dbTenants.map(t => ({
@@ -213,12 +223,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           createdAt: t.created_at, updatedAt: t.updated_at || t.created_at
         }));
         setTenants(freshTenants);
-        localStorage.setItem(STORAGE_TENANTS, JSON.stringify(freshTenants));
       }
 
       if (!session.user) return { success: true, count: 0, tenants: freshTenants };
 
       const currentTid = session.user.tenantId;
+
+      // 2. Push: Envia dados locais novos/alterados para a nuvem
       const unsynced = allMembers.filter(m => {
         const matchesTenant = session.user?.role === 'SUPER_ADMIN' || m.tenant_id === currentTid || m.tenantId === currentTid;
         return !m.isSynced && matchesTenant;
@@ -242,6 +253,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
+      // 3. Pull: Baixa dados da nuvem
       let query = supabase.from('socios').select('*');
       if (session.user.role !== 'SUPER_ADMIN' && currentTid) {
         query = query.eq('tenant_id', currentTid);
@@ -252,10 +264,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (remote && Array.isArray(remote)) {
         const mappedRemote = remote.map(rm => sanitize({...rm, isSynced: true}));
+        
         setAllMembers(prev => {
+          // No Super Admin, os dados remotos são a verdade absoluta para visualização global
           if (session.user?.role === 'SUPER_ADMIN') return mappedRemote;
+          
+          // No usuário de região, mantemos os registros de outros tenants e 
+          // mesclamos os remotos com os locais que ainda não foram sincronizados
           const others = prev.filter(m => m.tenant_id !== currentTid && m.tenantId !== currentTid);
-          return [...others, ...mappedRemote];
+          const localUnsynced = prev.filter(m => (m.tenant_id === currentTid || m.tenantId === currentTid) && !m.isSynced);
+          
+          // Evita duplicatas se um item sincronizado localmente acabou de vir do remote
+          const unsyncedToKeep = localUnsynced.filter(lu => !mappedRemote.some(rm => rm.id === lu.id));
+          
+          return [...others, ...mappedRemote, ...unsyncedToKeep];
         });
       }
 
@@ -274,12 +296,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const login = (username: string, pass: string, tenantList?: Tenant[]): boolean => {
     const listToSearch = tenantList || tenants;
     if (username === 'admin' && pass === 'admin') {
-      setSession({ user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } });
+      const newSession: AuthSession = { user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } };
+      setSession(newSession);
       return true;
     }
     const t = listToSearch.find(x => x.adminUsername === username && x.adminPassword === pass);
     if (t && t.isActive) {
-      setSession({ user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } });
+      const newSession: AuthSession = { user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } };
+      setSession(newSession);
       return true;
     }
     return false;
@@ -324,11 +348,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updatedAt: newTenantData.created_at
     };
 
-    setTenants(prev => {
-        const newList = [...prev, localTenant];
-        localStorage.setItem(STORAGE_TENANTS, JSON.stringify(newList));
-        return newList;
-    });
+    setTenants(prev => [...prev, localTenant]);
   };
 
   const toggleTenantStatus = async (id: string) => {
@@ -384,7 +404,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const importMembers = (newMembers: Member[]) => {
-    setAllMembers(prev => [...prev, ...newMembers.map(m => sanitize(m))]);
+    const sanitized = newMembers.map(m => sanitize(m));
+    setAllMembers(prev => [...prev, ...sanitized]);
   };
 
   const clearDatabase = () => {
