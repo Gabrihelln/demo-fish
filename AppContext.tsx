@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { Member, DocumentTemplate, Tenant, AuthSession } from './types';
 import { createClient } from '@supabase/supabase-js';
 import { EMPTY_MEMBER } from './constants';
@@ -10,7 +10,7 @@ const DEFAULT_SUPABASE_KEY = (process.env as any).SUPABASE_ANON_KEY || 'eyJhbGci
 interface SyncResult {
   success: boolean;
   count: number;
-  tenants?: Tenant[];
+  tenants: Tenant[];
 }
 
 interface AppContextType {
@@ -18,6 +18,7 @@ interface AppContextType {
   templates: DocumentTemplate[];
   tenants: Tenant[];
   session: AuthSession;
+  isAppReady: boolean;
   login: (username: string, pass: string, tenantList?: Tenant[]) => boolean;
   logout: () => void;
   addTenant: (name: string, username: string, pass: string) => Promise<void>;
@@ -46,19 +47,11 @@ const STORAGE_SESSION = 'sga_session';
 const STORAGE_CLOUD_URL = 'sga_cloud_url';
 const STORAGE_CLOUD_KEY = 'sga_cloud_key';
 const DB_NAME = 'SGA_DATABASE_V3';
-const DB_VERSION = 1;
 const STORE_NAME = 'members';
-
-const DATE_FIELDS = [
-  'data_admissao', 'recadastro', 'data_nascimento', 'validade_dap', 
-  'data_expedicao_rg', 'data_expedicao_ctps', 'data_emissao_rgp', 
-  'data_falecimento', 'data_transferencia', 'data_ultimo_pagamento',
-  'primeira_data_pagamento', 'ultimo_dia_pago', 'data_ultimo_movimento'
-];
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -70,37 +63,15 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const saveMembersToDB = async (members: Member[]) => {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-  store.clear();
-  members.forEach(m => {
-    if (m && m.id) store.put(m);
-  });
-  return new Promise((resolve) => { tx.oncomplete = resolve; });
-};
-
-const getMembersFromDB = async (): Promise<Member[]> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [session, setSession] = useState<AuthSession>({ user: null });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isAppReady, setIsAppReady] = useState(false);
   const [cloudConnected, setCloudConnected] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('sga_last_sync'));
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
   
   const [cloudKeys, setCloudKeys] = useState({
     url: localStorage.getItem(STORAGE_CLOUD_URL) || DEFAULT_SUPABASE_URL,
@@ -109,114 +80,85 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const supabase = useMemo(() => {
     if (!cloudKeys.url || !cloudKeys.key) return null;
-    try {
-      return createClient(cloudKeys.url, cloudKeys.key);
-    } catch (e) {
-      return null;
-    }
+    try { return createClient(cloudKeys.url, cloudKeys.key); } catch (e) { return null; }
   }, [cloudKeys.url, cloudKeys.key]);
 
-  // Carregamento inicial de dados
   useEffect(() => {
-    const loadInitialData = async () => {
+    const boot = async () => {
       try {
-        const dbMembers = await getMembersFromDB();
-        if (dbMembers && dbMembers.length > 0) {
-          setAllMembers(dbMembers);
-        }
-      } catch (e) { console.error("Erro IDB:", e); }
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          const dbMembers = request.result || [];
+          const st = localStorage.getItem(STORAGE_TEMPLATES);
+          const sn = localStorage.getItem(STORAGE_TENANTS);
+          const ss = localStorage.getItem(STORAGE_SESSION);
 
-      try {
-        const st = localStorage.getItem(STORAGE_TEMPLATES);
-        const sn = localStorage.getItem(STORAGE_TENANTS);
-        const ss = localStorage.getItem(STORAGE_SESSION);
-        if (st) setTemplates(JSON.parse(st));
-        if (sn) setTenants(JSON.parse(sn));
-        if (ss) setSession(JSON.parse(ss));
-      } catch (e) { console.error("Erro LS:", e); }
-      
-      setIsInitialLoadComplete(true);
+          if (dbMembers.length > 0) setAllMembers(dbMembers);
+          if (st) setTemplates(JSON.parse(st));
+          if (sn) setTenants(JSON.parse(sn));
+          if (ss) setSession(JSON.parse(ss));
+          
+          setIsAppReady(true);
+        };
+      } catch (e) {
+        setIsAppReady(true);
+      }
     };
-    loadInitialData();
-    const handleStatus = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', handleStatus);
-    window.addEventListener('offline', handleStatus);
-    return () => {
-      window.removeEventListener('online', handleStatus);
-      window.removeEventListener('offline', handleStatus);
-    };
+    boot();
   }, []);
 
-  // Persistência automática no IndexedDB quando 'allMembers' muda
   useEffect(() => {
-    // IMPORTANTE: Só salva se o carregamento inicial terminou, 
-    // para evitar que o estado inicial vazio [] limpe o banco de dados.
-    if (isInitialLoadComplete) {
-      saveMembersToDB(allMembers).catch(console.error);
-    }
-  }, [allMembers, isInitialLoadComplete]);
+    if (!isAppReady) return;
+    const save = async () => {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      await store.clear();
+      allMembers.forEach(m => { if (m.id) store.put(m); });
+    };
+    save();
+    localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
+    localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
+    localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
+  }, [allMembers, templates, tenants, session, isAppReady]);
 
-  useEffect(() => {
-    if (isInitialLoadComplete) {
-      localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
-      localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
-      localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
-    }
-  }, [templates, tenants, session, isInitialLoadComplete]);
-
-  const updateCloudKeys = (url: string, key: string) => {
-    setCloudKeys({ url, key });
-    localStorage.setItem(STORAGE_CLOUD_URL, url);
-    localStorage.setItem(STORAGE_CLOUD_KEY, key);
-  };
-
-  const sanitize = (m: any): Member => {
-    const member: any = { ...EMPTY_MEMBER };
-    if (m && typeof m === 'object') {
-      Object.keys(EMPTY_MEMBER).forEach(key => {
-        let val = m[key] !== undefined ? m[key] : (m[key === 'tenantId' ? 'tenant_id' : (key === 'tenant_id' ? 'tenantId' : key)]);
-        
-        if (key === 'dependents') {
-          let deps = val;
-          if (typeof deps === 'string') {
-            try { deps = JSON.parse(deps); } catch(e) { deps = []; }
-          }
-          member.dependents = Array.isArray(deps) ? deps : [];
-        } else if (key === 'isSynced') {
-          member.isSynced = !!val;
-        } else if (DATE_FIELDS.includes(key)) {
-          if (val && typeof val === 'string' && val !== "" && val !== "null") {
-            const match = val.match(/^(\d{4}-\d{2}-\d{2})/);
-            member[key] = match ? match[1] : val;
-          } else {
-            member[key] = "";
-          }
-        } else {
-          member[key] = (val === null || val === undefined || val === 'null' || val === 'undefined') ? "" : String(val);
-        }
-      });
-    }
-    if (!member.id || member.id === "") member.id = crypto.randomUUID();
+  const sanitize = (m: any, forcedTenantId?: string): Member => {
+    const member = { ...EMPTY_MEMBER };
+    const tid = m.tenant_id || m.tenantId || forcedTenantId || session.user?.tenantId || "";
     
-    // Sincroniza tenantId e tenant_id
-    if (!member.tenantId || member.tenantId === "" || member.tenantId === "undefined") {
-        member.tenantId = m.tenant_id || session.user?.tenantId || "";
-    }
-    member.tenant_id = member.tenantId;
+    Object.keys(EMPTY_MEMBER).forEach(key => {
+      let val = m[key] !== undefined ? m[key] : "";
+      if (key === 'dependents') {
+        let deps = val;
+        if (typeof deps === 'string' && deps !== "") {
+            try { deps = JSON.parse(deps); } catch(e) { deps = []; }
+        }
+        member.dependents = Array.isArray(deps) ? deps : [];
+      } else {
+        member[key] = (val === null || val === undefined) ? "" : String(val);
+      }
+    });
+
+    if (!member.id) member.id = crypto.randomUUID();
+    member.tenantId = tid;
+    member.tenant_id = tid;
+    member.isSynced = m.isSynced === true;
     
     return member as Member;
   };
 
   const syncData = async (): Promise<SyncResult> => {
-    if (!navigator.onLine || !supabase) return { success: false, count: 0 };
+    if (!navigator.onLine || !supabase) return { success: false, count: 0, tenants };
     setCloudConnected(true);
-    let syncedCount = 0;
-    let freshTenants: Tenant[] = [];
     
     try {
-      // 1. Sincroniza Unidades (Tenants)
-      const { data: dbTenants } = await supabase.from('tenants').select('*');
-      if (dbTenants) {
+      const { data: dbTenants, error: tError } = await supabase.from('tenants').select('*');
+      let freshTenants = tenants;
+      if (dbTenants && !tError) {
         freshTenants = dbTenants.map(t => ({
           id: t.id, name: t.name, adminUsername: t.admin_username,
           adminPassword: t.admin_password, isActive: t.is_active !== false,
@@ -227,209 +169,141 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (!session.user) return { success: true, count: 0, tenants: freshTenants };
 
+      const isSuperAdmin = session.user.role === 'SUPER_ADMIN';
       const currentTid = session.user.tenantId;
 
-      // 2. Push: Envia dados locais novos/alterados para a nuvem
+      // PUSH: Envia dados locais não sincronizados
       const unsynced = allMembers.filter(m => {
-        const matchesTenant = session.user?.role === 'SUPER_ADMIN' || m.tenant_id === currentTid || m.tenantId === currentTid;
-        return !m.isSynced && matchesTenant;
+        const syncStatus = !m.isSynced;
+        if (isSuperAdmin) return syncStatus;
+        return syncStatus && m.tenantId === currentTid;
       });
 
       if (unsynced.length > 0) {
         const payload = unsynced.map(m => {
-          const { isSynced, photoUrl, tenantId, updatedAt, updated_at, dependents, ...rest } = m;
+          // EXCLUÍMOS 'dependents' e 'foto' do payload porque a coluna não existe no Supabase
+          const { isSynced, photoUrl, tenantId, updatedAt, dependents, foto, ...rest } = m;
           const cleaned: any = {};
-          Object.entries(rest).forEach(([k, v]) => {
-            cleaned[k] = (v === "" || v === null || v === undefined) ? null : v;
+          
+          Object.entries(rest).forEach(([k, v]) => { 
+            cleaned[k] = v === "" ? null : v; 
           });
-          cleaned.tenant_id = m.tenantId || m.tenant_id || currentTid;
+          
+          // Garante o ID da unidade
+          cleaned.tenant_id = m.tenant_id || m.tenantId || currentTid;
           return cleaned;
-        }).filter(p => p.tenant_id && p.id);
+        });
 
-        if (payload.length > 0) {
-          const { error: upsertError } = await supabase.from('socios').upsert(payload, { onConflict: 'id' });
-          if (upsertError) throw upsertError;
-          syncedCount = payload.length;
-        }
-      }
-
-      // 3. Pull: Baixa dados da nuvem
-      let query = supabase.from('socios').select('*');
-      if (session.user.role !== 'SUPER_ADMIN' && currentTid) {
-        query = query.eq('tenant_id', currentTid);
-      }
-
-      const { data: remote, error: fetchError } = await query;
-      if (fetchError) throw fetchError;
-
-      if (remote && Array.isArray(remote)) {
-        const mappedRemote = remote.map(rm => sanitize({...rm, isSynced: true}));
+        const { error: upsertError } = await supabase.from('socios').upsert(payload, { onConflict: 'id' });
         
+        if (upsertError) {
+          console.error("Erro no Upsert:", upsertError);
+          throw new Error(upsertError.message);
+        }
+
+        // Se deu certo, marca localmente como sincronizado
+        const syncedIds = unsynced.map(m => m.id);
+        setAllMembers(prev => prev.map(m => 
+          syncedIds.includes(m.id) ? { ...m, isSynced: true } : m
+        ));
+      }
+
+      // PULL: Baixa dados atualizados
+      let pullQuery = supabase.from('socios').select('*');
+      if (!isSuperAdmin && currentTid) {
+        pullQuery = pullQuery.eq('tenant_id', currentTid);
+      }
+
+      const { data: remote, error: pullError } = await pullQuery;
+      if (!pullError && remote) {
+        const mappedRemote = remote.map(rm => sanitize(rm));
         setAllMembers(prev => {
-          // No Super Admin, os dados remotos são a verdade absoluta para visualização global
-          if (session.user?.role === 'SUPER_ADMIN') return mappedRemote;
-          
-          // No usuário de região, mantemos os registros de outros tenants e 
-          // mesclamos os remotos com os locais que ainda não foram sincronizados
-          const others = prev.filter(m => m.tenant_id !== currentTid && m.tenantId !== currentTid);
-          const localUnsynced = prev.filter(m => (m.tenant_id === currentTid || m.tenantId === currentTid) && !m.isSynced);
-          
-          // Evita duplicatas se um item sincronizado localmente acabou de vir do remote
-          const unsyncedToKeep = localUnsynced.filter(lu => !mappedRemote.some(rm => rm.id === lu.id));
-          
-          return [...others, ...mappedRemote, ...unsyncedToKeep];
+          const map = new Map(prev.map(p => [p.id, p]));
+          mappedRemote.forEach(r => { 
+            r.isSynced = true; 
+            map.set(r.id, r); 
+          });
+          return Array.from(map.values());
         });
       }
 
       const now = new Date().toLocaleString('pt-BR');
       setLastSync(now);
       localStorage.setItem('sga_last_sync', now);
-      return { success: true, count: syncedCount, tenants: freshTenants };
+      return { success: true, count: unsynced.length, tenants: freshTenants };
     } catch (e: any) {
-      console.error("Erro Sincronização:", e);
-      return { success: false, count: 0 };
+      console.error("Erro na Sincronização:", e.message);
+      return { success: false, count: 0, tenants };
     } finally {
       setCloudConnected(false);
     }
   };
 
   const login = (username: string, pass: string, tenantList?: Tenant[]): boolean => {
-    const listToSearch = tenantList || tenants;
+    const list = tenantList || tenants;
     if (username === 'admin' && pass === 'admin') {
-      const newSession: AuthSession = { user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } };
-      setSession(newSession);
+      setSession({ user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } });
       return true;
     }
-    const t = listToSearch.find(x => x.adminUsername === username && x.adminPassword === pass);
+    const t = list.find(x => x.adminUsername === username && x.adminPassword === pass);
     if (t && t.isActive) {
-      const newSession: AuthSession = { user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } };
-      setSession(newSession);
+      setSession({ user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } });
       return true;
     }
     return false;
   };
 
-  const logout = () => { setSession({ user: null }); };
-
   const currentMembers = useMemo(() => {
-    if (!session.user) return [];
+    if (!session.user || !isAppReady) return [];
     if (session.user.role === 'SUPER_ADMIN') return allMembers;
     const tid = session.user.tenantId;
-    return allMembers.filter(m => m && (m.tenant_id === tid || m.tenantId === tid));
-  }, [allMembers, session.user]);
-
-  const addTenant = async (name: string, username: string, pass: string) => {
-    const newId = crypto.randomUUID();
-    const newTenantData: any = {
-      id: newId,
-      name,
-      admin_username: username,
-      admin_password: pass,
-      is_active: true,
-      created_at: new Date().toISOString()
-    };
-
-    if (supabase) {
-        const { error } = await supabase.from('tenants').insert([newTenantData]);
-        if (error) {
-            console.error("Erro ao criar tenant na nuvem:", error);
-            alert("Erro ao salvar unidade no servidor.");
-            return;
-        }
-    }
-
-    const localTenant: Tenant = {
-        id: newId,
-        name,
-        adminUsername: username,
-        adminPassword: pass,
-        isActive: true,
-        createdAt: newTenantData.created_at,
-        updatedAt: newTenantData.created_at
-    };
-
-    setTenants(prev => [...prev, localTenant]);
-  };
-
-  const toggleTenantStatus = async (id: string) => {
-    const target = tenants.find(t => t.id === id);
-    if (!target) return;
-    const newStatus = !target.isActive;
-
-    if (supabase) {
-        const { error } = await supabase.from('tenants').update({ is_active: newStatus }).eq('id', id);
-        if (error) {
-            alert("Erro ao atualizar status no servidor.");
-            return;
-        }
-    }
-    
-    setTenants(prev => prev.map(t => t.id === id ? { ...t, isActive: newStatus, updatedAt: new Date().toISOString() } : t));
-  };
-
-  const deleteTenant = async (id: string) => {
-    if (supabase) {
-        const { error } = await supabase.from('tenants').delete().eq('id', id);
-        if (error) {
-            alert("Erro ao excluir unidade no servidor.");
-            return;
-        }
-    }
-    setTenants(prev => prev.filter(t => t.id !== id));
-  };
-
-  const addMember = (m: Member) => {
-    const newM = sanitize({ ...m, isSynced: false, updatedAt: new Date().toISOString() });
-    setAllMembers(prev => [...prev, newM]);
-  };
-
-  const updateMember = (index: number, m: Member) => {
-    const target = currentMembers[index];
-    if (!target) return;
-    setAllMembers(prev => prev.map(item => item.id === target.id ? sanitize({ ...m, isSynced: false, updatedAt: new Date().toISOString() }) : item));
-  };
-
-  const deleteMember = (index: number) => {
-    const target = currentMembers[index];
-    if (!target) return;
-    setAllMembers(prev => prev.filter(item => item.id !== target.id));
-  };
-
-  const addTemplate = (template: DocumentTemplate) => {
-    setTemplates(prev => [...prev, { ...template, tenantId: session.user?.tenantId || '', updatedAt: new Date().toISOString() }]);
-  };
-
-  const deleteTemplate = (id: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== id));
-  };
-
-  const importMembers = (newMembers: Member[]) => {
-    const sanitized = newMembers.map(m => sanitize(m));
-    setAllMembers(prev => [...prev, ...sanitized]);
-  };
-
-  const clearDatabase = () => {
-    setAllMembers([]);
-    setTemplates([]);
-    setTenants([]);
-    openDB().then(db => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).clear();
-    });
-  };
+    return allMembers.filter(m => m.tenantId === tid || m.tenant_id === tid);
+  }, [allMembers, session.user, isAppReady]);
 
   const value = {
-    members: currentMembers, templates, tenants, session, login, logout,
-    addTenant, toggleTenantStatus, deleteTenant, addMember, updateMember,
-    deleteMember, addTemplate, deleteTemplate, importMembers, clearDatabase,
-    isOnline, lastSync, syncData, cloudConnected, cloudKeys, updateCloudKeys
+    members: currentMembers, templates, tenants, session, isAppReady, login,
+    logout: () => setSession({ user: null }),
+    addTenant: async (name: string, user: string, pass: string) => {
+      const id = crypto.randomUUID();
+      const payload = { id, name, admin_username: user, admin_password: pass, is_active: true, created_at: new Date().toISOString() };
+      if (supabase) await supabase.from('tenants').insert([payload]);
+      setTenants(prev => [...prev, { id, name, adminUsername: user, adminPassword: pass, isActive: true, createdAt: payload.created_at, updatedAt: payload.created_at }]);
+    },
+    toggleTenantStatus: async (id: string) => {
+      const t = tenants.find(x => x.id === id);
+      if (!t) return;
+      if (supabase) await supabase.from('tenants').update({ is_active: !t.isActive }).eq('id', id);
+      setTenants(prev => prev.map(x => x.id === id ? { ...x, isActive: !x.isActive } : x));
+    },
+    deleteTenant: async (id: string) => {
+      if (supabase) await supabase.from('tenants').delete().eq('id', id);
+      setTenants(prev => prev.filter(x => x.id !== id));
+    },
+    addMember: (m: Member) => setAllMembers(prev => [...prev, sanitize(m)]),
+    updateMember: (index: number, m: Member) => {
+      const target = currentMembers[index];
+      if (target) setAllMembers(prev => prev.map(p => p.id === target.id ? sanitize(m) : p));
+    },
+    deleteMember: (index: number) => {
+      const target = currentMembers[index];
+      if (target) setAllMembers(prev => prev.filter(p => p.id !== target.id));
+    },
+    addTemplate: (t: DocumentTemplate) => setTemplates(prev => [...prev, { ...t, tenantId: session.user?.tenantId || '' }]),
+    deleteTemplate: (id: string) => setTemplates(prev => prev.filter(x => x.id !== id)),
+    importMembers: (list: Member[]) => setAllMembers(prev => {
+      const map = new Map(prev.map(p => [p.id, p]));
+      list.forEach(l => { 
+        const s = sanitize({...l, isSynced: false}); 
+        map.set(s.id, s); 
+      });
+      return Array.from(map.values());
+    }),
+    clearDatabase: () => { setAllMembers([]); setTemplates([]); setTenants([]); },
+    isOnline, lastSync, syncData, cloudConnected, cloudKeys, 
+    updateCloudKeys: (url: string, key: string) => { setCloudKeys({ url, key }); localStorage.setItem(STORAGE_CLOUD_URL, url); localStorage.setItem(STORAGE_CLOUD_KEY, key); }
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useApp = () => {

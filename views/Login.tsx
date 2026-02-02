@@ -1,30 +1,34 @@
 
 import React, { useState } from 'react';
-import { Users, Lock, User, ShieldCheck, ChevronRight, RefreshCw } from 'lucide-react';
+import { Users, Lock, User, ChevronRight, RefreshCw } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { useNavigation } from '../NavigationContext';
 
 export const LoginView: React.FC = () => {
   const { login, syncData } = useApp();
-  const { isDarkMode } = useNavigation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     
     try {
+      // Primeiro sincronizamos as unidades (tenants) para garantir que temos as senhas mais recentes
       const syncResult = await syncData();
+      
+      // Tentamos o login com a lista fresca de tenants vinda do sync
       const success = login(username, password, syncResult.tenants);
+      
       if (!success) {
-        alert("Credenciais inválidas ou acesso bloqueado.");
+        alert("Credenciais inválidas. Verifique seu usuário e senha.");
       }
     } catch (err) {
-      const success = login(username, password);
-      if (!success) {
-        alert("Não foi possível conectar à nuvem e as credenciais locais falharam.");
+      // Fallback: Tenta login com o que já tem em cache local se o sync falhar
+      if (!login(username, password)) {
+        alert("Falha no acesso. Verifique sua conexão ou credenciais.");
       }
     } finally {
       setIsLoading(false);
@@ -32,20 +36,17 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-blue-600 dark:bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden transition-colors duration-700">
-      
-      {/* Camada de Gradiente Dinâmico */}
+    <div className="min-h-screen bg-blue-600 dark:bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 opacity-100 transition-all duration-700" />
 
-      {/* Esferas Decorativas (Blobs) mais intensas */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400 dark:bg-blue-600 rounded-full blur-[140px] opacity-40 animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-400 dark:bg-emerald-600 rounded-full blur-[140px] opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-400 dark:bg-emerald-600 rounded-full blur-[140px] opacity-30 animate-pulse" />
       </div>
 
-      <div className="w-full max-w-md animate-in zoom-in-95 duration-700 relative z-10">
+      <div className="w-full max-w-md animate-in zoom-in-95 duration-500 relative z-10">
         <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-[48px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] p-10 lg:p-14 border border-white/20 dark:border-white/5">
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <div className="bg-blue-600 w-20 h-20 rounded-[28px] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-blue-600/40 border-4 border-white/20">
               <Users size={36} />
             </div>
@@ -64,8 +65,8 @@ export const LoginView: React.FC = () => {
                   type="text" 
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                  placeholder="Seu nome de usuário"
+                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+                  placeholder="Seu usuário"
                   required
                 />
               </div>
@@ -81,7 +82,7 @@ export const LoginView: React.FC = () => {
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
                   placeholder="••••••••"
                   required
                 />
@@ -91,25 +92,11 @@ export const LoginView: React.FC = () => {
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 hover:-translate-y-1 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50"
+              className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50"
             >
-              {isLoading ? (
-                <>
-                  <RefreshCw className="animate-spin" size={16} /> Verificando...
-                </>
-              ) : (
-                <>
-                  Entrar no Sistema <ChevronRight size={16} />
-                </>
-              )}
+              {isLoading ? <RefreshCw className="animate-spin" size={16} /> : <><ChevronRight size={16} /> Entrar no Sistema</>}
             </button>
           </form>
-
-          {/* <div className="mt-12 flex items-center justify-center gap-3">
-             <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800"></div>
-             <span className="text-[8px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.3em]">Orbio Tech</span>
-             <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800"></div>
-          </div> */}
         </div>
 
         <p className="text-center text-white/40 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-8">

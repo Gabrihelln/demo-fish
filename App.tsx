@@ -12,8 +12,7 @@ import { LoginView } from './views/Login';
 import { AdminPanelView } from './views/AdminPanel';
 import { DocsView } from './views/Docs';
 import { 
-  Menu as MenuIcon, Settings, Wallet, Landmark, 
-  Wifi, WifiOff, RefreshCw, ShieldCheck
+  Menu as MenuIcon, Wifi, WifiOff, RefreshCw, ShieldCheck, Loader2
 } from 'lucide-react';
 
 const HeaderStatus: React.FC = () => {
@@ -34,7 +33,7 @@ const HeaderStatus: React.FC = () => {
       </div>
 
       <button 
-        onClick={syncData}
+        onClick={() => syncData()}
         className={`p-2.5 rounded-xl transition-all ${isOnline ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
       >
         <RefreshCw size={18} />
@@ -51,16 +50,25 @@ const HeaderStatus: React.FC = () => {
 };
 
 const MainLayout: React.FC = () => {
-  const { session } = useApp();
+  const { session, isAppReady } = useApp();
   const { activeView, setActiveView, setSidebarOpen } = useNavigation();
 
   useEffect(() => {
     if (session.user?.role === 'SUPER_ADMIN') {
       setActiveView('admin-panel');
-    } else {
+    } else if (session.user) {
       setActiveView('home');
     }
   }, [session.user?.role]);
+
+  if (!isAppReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center">
+        <Loader2 className="text-blue-600 animate-spin mb-4" size={48} />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Carregando SGA...</p>
+      </div>
+    );
+  }
 
   if (!session.user) return <LoginView />;
 
