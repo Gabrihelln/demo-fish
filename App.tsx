@@ -5,6 +5,8 @@ import { NavigationProvider, useNavigation } from './NavigationContext';
 import { Sidebar } from './components/Sidebar';
 import { HomeView } from './views/Home';
 import { SociosView } from './views/Socios';
+import { CategoriasView } from './views/Categorias';
+import { LocalidadesView } from './views/Localidades';
 import { DocumentosModelosView } from './views/DocumentosModelos';
 import { DocumentosListaView } from './views/DocumentosLista';
 import { RelatoriosView } from './views/Relatorios';
@@ -85,6 +87,8 @@ const MainLayout: React.FC = () => {
     switch (activeView) {
       case 'home': return <HomeView />;
       case 'cadastro-socios': return <SociosView />;
+      case 'cadastro-categorias': return <CategoriasView />;
+      case 'cadastro-localidade': return <LocalidadesView />;
       case 'documentos-modelos': return <DocumentosModelosView />;
       case 'documentos-lista': return <DocumentosListaView />;
       case 'relatorios': return <RelatoriosView />;

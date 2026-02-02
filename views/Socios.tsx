@@ -17,7 +17,7 @@ import { Section } from '../components/Section';
 
 export const SociosView: React.FC = () => {
   const { members, addMember, updateMember, deleteMember, templates } = useApp();
-  const [currentIndex, setCurrentIndex] = useState(members.length > 0 ? 0 : -1);
+  const [currentIndex, setCurrentIndex] = useState((members || []).length > 0 ? 0 : -1);
   const [currentMember, setCurrentMember] = useState<Member>(currentIndex >= 0 ? members[currentIndex] : EMPTY_MEMBER);
   
   // Estados do Modal de Edição/Inclusão
@@ -35,7 +35,7 @@ export const SociosView: React.FC = () => {
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (currentIndex >= 0 && members[currentIndex]) {
+    if (currentIndex >= 0 && members && members[currentIndex]) {
       setCurrentMember(members[currentIndex]);
     }
   }, [members, currentIndex]);
@@ -59,7 +59,7 @@ export const SociosView: React.FC = () => {
     if (!formMember.nome) return alert("Nome completo é obrigatório.");
     if (modalMode === 'add') {
       addMember(formMember);
-      setCurrentIndex(members.length); // Vai para o novo
+      setCurrentIndex((members || []).length); 
     } else {
       updateMember(currentIndex, formMember);
     }
@@ -83,15 +83,16 @@ export const SociosView: React.FC = () => {
   };
 
   const navigate = (dir: 'prev' | 'next') => {
-    if (members.length === 0) return;
+    const list = members || [];
+    if (list.length === 0) return;
     let nextIdx = dir === 'prev' 
-      ? (currentIndex > 0 ? currentIndex - 1 : members.length - 1)
-      : (currentIndex < members.length - 1 ? currentIndex + 1 : 0);
+      ? (currentIndex > 0 ? currentIndex - 1 : list.length - 1)
+      : (currentIndex < list.length - 1 ? currentIndex + 1 : 0);
     setCurrentIndex(nextIdx);
   };
 
   const handleSelectSuggestion = (member: Member) => {
-    const idx = members.findIndex(m => m.id === member.id);
+    const idx = (members || []).findIndex(m => m.id === member.id);
     if (idx !== -1) {
       setCurrentIndex(idx);
       setSearchTerm('');
@@ -99,9 +100,9 @@ export const SociosView: React.FC = () => {
     }
   };
 
-  const filteredSuggestions = searchTerm.trim() === '' ? [] : members.filter(m => 
-    m.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    m.codigo_socio.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSuggestions = searchTerm.trim() === '' ? [] : (members || []).filter(m => 
+    (m.nome || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (m.codigo_socio || "").toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 8);
 
   const generateMemberDoc = (template: DocumentTemplate) => {
@@ -286,7 +287,7 @@ export const SociosView: React.FC = () => {
               <div className="p-8 bg-slate-50 dark:bg-slate-800/30 border-b dark:border-slate-800 flex justify-between items-center">
                 <h3 className="text-sm font-black uppercase text-slate-700 dark:text-slate-200 flex items-center gap-2"><TableIcon size={18} /> Dependentes do Associado</h3>
                 {!isReadOnly && (
-                  <button onClick={() => onChange({ target: { name: 'dependents', value: [...data.dependents, {id: Date.now().toString(), name: '', birthDate: '', relationship: ''}] } })} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">+ Adicionar</button>
+                  <button onClick={() => onChange({ target: { name: 'dependents', value: [...(data.dependents || []), {id: Date.now().toString(), name: '', birthDate: '', relationship: ''}] } })} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">+ Adicionar</button>
                 )}
               </div>
               <div className="overflow-x-auto">
@@ -295,7 +296,7 @@ export const SociosView: React.FC = () => {
                     <tr><th className="px-8 py-4 text-left">Nome Dependente</th><th className="px-8 py-4 text-left">Nascimento</th><th className="px-8 py-4 text-left">Parentesco</th>{!isReadOnly && <th className="px-8 py-4 text-right">Ação</th>}</tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {data.dependents.map(d => (
+                    {(data.dependents || []).map(d => (
                       <tr key={d.id}>
                         <td className="px-6 py-3"><input className={`w-full p-2 bg-transparent focus:bg-white dark:focus:bg-slate-800 rounded border border-transparent focus:border-blue-200 outline-none text-slate-900 dark:text-white ${isReadOnly ? 'pointer-events-none' : ''}`} value={d.name} onChange={e => onChange({ target: { name: 'dependents', value: data.dependents.map(x => x.id === d.id ? {...x, name: e.target.value} : x) } })} /></td>
                         <td className="px-6 py-3"><input type="date" className={`w-full p-2 bg-transparent outline-none cursor-pointer text-slate-900 dark:text-white ${isReadOnly ? 'pointer-events-none' : ''}`} value={d.birthDate} onChange={e => onChange({ target: { name: 'dependents', value: data.dependents.map(x => x.id === d.id ? {...x, birthDate: e.target.value} : x) } })} /></td>
@@ -378,7 +379,7 @@ export const SociosView: React.FC = () => {
               </button>
             </div>
             <div className="p-8 max-h-[60vh] overflow-y-auto space-y-3">
-              {templates.length > 0 ? templates.map(t => (
+              {(templates || []).length > 0 ? templates.map(t => (
                 <button 
                   key={t.id}
                   onClick={() => generateMemberDoc(t)}
@@ -460,7 +461,7 @@ export const SociosView: React.FC = () => {
         <div className="md:col-span-3 flex justify-end items-center gap-2 pr-2">
           <button onClick={() => navigate('prev')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400"><ChevronLeft size={20} /></button>
           <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-            {currentIndex + 1} / {members.length}
+            {currentIndex + 1} / {(members || []).length}
           </div>
           <button onClick={() => navigate('next')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400"><ChevronRight size={20} /></button>
           <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border ml-2 ${currentMember.situacao === 'Ativo' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>

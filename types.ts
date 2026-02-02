@@ -28,6 +28,22 @@ export interface Dependent {
   relationship: string;
 }
 
+export interface Category {
+  id: string;
+  tenant_id: string;
+  codigo: string;
+  nome: string;
+  isSynced: boolean;
+}
+
+export interface Locality {
+  id: string;
+  tenant_id: string;
+  codigo: string;
+  nome: string;
+  isSynced: boolean;
+}
+
 export interface DocumentTemplate {
   id: string;
   tenantId: string;

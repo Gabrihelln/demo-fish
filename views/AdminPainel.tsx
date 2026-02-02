@@ -103,6 +103,14 @@ const FIELD_MAP: Record<string, string[]> = {
   tenant_id: ["tenant_id", "unidade", "unidade_id"]
 };
 
+// Lista de campos que sabemos que são datas
+const DATE_FIELDS = [
+  'data_admissao', 'recadastro', 'data_nascimento', 'data_expedicao_rg', 
+  'data_expedicao_ctps', 'data_emissao_rgp', 'data_falecimento', 
+  'data_transferencia', 'validade_dap', 'data_ultimo_pagamento', 
+  'primeira_data_pagamento', 'ultimo_dia_pago', 'data_ultimo_movimento'
+];
+
 interface FeedbackState {
   isOpen: boolean;
   type: 'migration' | 'sync' | 'reset' | 'create';
@@ -195,9 +203,17 @@ export const AdminPainelView: React.FC = () => {
         Object.keys(mapping).forEach((oldKey) => {
           const newKey = mapping[oldKey];
           let value = oldItem[oldKey];
+          
+          // Sanitização de CPF
           if (newKey === 'cpf' && typeof value === 'string') {
             value = value.replace(/\D/g, '');
           }
+          
+          // Sanitização de Datas (remove o horário)
+          if (DATE_FIELDS.includes(newKey) && typeof value === 'string') {
+            value = value.split(' ')[0].substring(0, 10);
+          }
+
           newItem[newKey] = String(value || "");
         });
         return newItem as Member;

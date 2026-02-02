@@ -33,7 +33,7 @@ export const RelatoriosView: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase">{reportOptions.find(r => r.id === selectedReport)?.label}</h3>
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total: {members.length}</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total: {(members || []).length}</p>
           </div>
           <div className="flex gap-2">
             <button className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-slate-200 transition-all">Imprimir</button>
@@ -52,7 +52,7 @@ export const RelatoriosView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-              {members.map((m, idx) => (
+              {(members || []).map((m, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-8 py-5">
                     <div>
@@ -67,6 +67,11 @@ export const RelatoriosView: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {(members || []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-8 py-10 text-center text-slate-400 uppercase text-[10px] font-black">Nenhum registro encontrado</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

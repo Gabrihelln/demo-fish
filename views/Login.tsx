@@ -24,10 +24,8 @@ export const LoginView: React.FC = () => {
       
       if (!success) {
         alert("Credenciais inválidas. Verifique seu usuário e senha.");
-      } else {
-        // 3. SUCESSO: Força uma sincronização dos dados daquela unidade específica IMEDIATAMENTE
-        await syncData();
       }
+      // A sincronização de dados da unidade ocorrerá automaticamente via AppContext useEffect
     } catch (err) {
       // Fallback local se o Supabase falhar
       const success = await login(username, password);

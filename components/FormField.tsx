@@ -13,13 +13,16 @@ interface FieldProps {
 }
 
 export const Input: React.FC<FieldProps> = ({ label, name, value, onChange, type = 'text', placeholder, className = '' }) => {
+  // Se for tipo date, pegamos apenas os primeiros 10 caracteres (YYYY-MM-DD) para compatibilidade com o input do browser
+  const displayValue = type === 'date' && value ? value.split(' ')[0].substring(0, 10) : value;
+
   return (
     <div className={`flex flex-col space-y-1 ${className}`}>
       <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
       <input
         type={type}
         name={name}
-        value={value || ""}
+        value={displayValue || ""}
         onChange={onChange}
         placeholder={placeholder}
         className={`bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all ${type === 'date' ? 'cursor-pointer' : ''}`}
