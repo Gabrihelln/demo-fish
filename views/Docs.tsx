@@ -7,7 +7,7 @@ import {
   MessageSquare, MapPin, Fish, Tags, Receipt, Wallet,
   CalendarDays, Landmark, FileSignature, Files, BarChart2,
   ShieldAlert, UserCheck, Type, MousePointer2, Palette,
-  Box, Terminal
+  Box, Terminal, Layers, Sparkles
 } from 'lucide-react';
 import { Section } from '../components/Section';
 import { Input, Select, TextArea } from '../components/FormField';
@@ -27,7 +27,10 @@ export const DocsView: React.FC = () => {
     <div className="flex flex-col lg:flex-row gap-10 animate-in fade-in duration-500 pb-20">
       {/* SIDE NAV DOCS */}
       <aside className="w-full lg:w-80 shrink-0 space-y-2 lg:sticky lg:top-32 h-fit">
-        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-8 px-4">Guia do Sistema</h2>
+        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-8 px-4 flex items-center gap-3">
+          <BookOpen className="text-blue-600" size={24} />
+          Guia do Sistema
+        </h2>
         {menu.map((item) => (
           <button
             key={item.id}
@@ -53,11 +56,11 @@ export const DocsView: React.FC = () => {
           <article className="prose prose-slate max-w-none space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             <div className="space-y-4">
               <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-600/20">
-                <BookOpen size={32} />
+                <Sparkles size={32} />
               </div>
               <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter m-0">Visão Geral do SGA</h1>
               <p className="text-lg text-slate-500 font-medium leading-relaxed">
-                O Sistema de Gestão de Associados (SGA) é uma plataforma "Offline-First" projetada para operar em cenários de conectividade instável, mantendo a integridade dos dados e a produtividade administrativa.
+                O Sistema de Gestão de Associados (SGA) é uma plataforma "Offline-First" projetada para operar em cenários de conectividade instável, mantendo a integridade dos dados e a produtividade administrativa em campo.
               </p>
             </div>
 
@@ -94,23 +97,23 @@ export const DocsView: React.FC = () => {
             
             <div className="space-y-6">
               <div className="flex gap-6 items-start">
-                <div className="bg-slate-900 p-4 rounded-2xl text-white"><Database size={24} /></div>
+                <div className="bg-slate-900 p-4 rounded-2xl text-white shadow-lg"><Database size={24} /></div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-tight text-slate-800">Camada de Persistência Local (Local-First)</h3>
                   <p className="text-xs font-medium text-slate-500 mt-2 leading-relaxed">
-                    O SGA utiliza <strong>IndexedDB</strong> (via SGA_DATABASE_V3) para armazenar membros, templates e sessões no navegador do usuário. Isso permite que o sistema seja recarregado e utilizado sem internet.
+                    O SGA utiliza <strong>IndexedDB</strong> (via SGA_DATABASE_V3) para armazenar membros, templates e sessões no navegador do usuário. Isso permite que o sistema seja recarregado e utilizado sem internet, garantindo latência zero.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-6 items-start">
-                <div className="bg-blue-600 p-4 rounded-2xl text-white"><RefreshCw size={24} /></div>
+                <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg"><RefreshCw size={24} /></div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-tight text-slate-800">Lógica de Sincronização</h3>
                   <p className="text-xs font-medium text-slate-500 mt-2 leading-relaxed">
                     A sincronização funciona em dois estágios: 
-                    <br/><strong>1. Push:</strong> Envia registros locais com `isSynced: false` para o Supabase.
-                    <br/><strong>2. Pull:</strong> Baixa registros remotos que pertencem ao `tenant_id` da sessão ativa.
+                    <br/><strong>1. Push:</strong> Identifica registros locais com flag `isSynced: false` e envia para o Supabase via operações em lote.
+                    <br/><strong>2. Pull:</strong> Recupera registros remotos filtrados pelo `tenant_id` da sessão ativa para manter o estado local atualizado.
                   </p>
                 </div>
               </div>
@@ -121,7 +124,7 @@ export const DocsView: React.FC = () => {
         {activeDocTab === 'usuario' && (
           <article className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Manual do Usuário Operacional</h1>
+              <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Manual Operacional</h1>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Sumário de Menus e Funcionalidades do Painel Padrão</p>
             </div>
 
@@ -140,8 +143,8 @@ export const DocsView: React.FC = () => {
                   { icon: Tags, label: 'Categorias', desc: 'Definição de classes (Ex: Marisqueira, Pescador Artesanal).' },
                   { icon: Receipt, label: 'Contas', desc: 'Estruturação do plano de contas para movimentações financeiras.' },
                 ].map((item, i) => (
-                  <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-blue-200 transition-all flex gap-4">
-                    <div className="bg-white p-3 rounded-2xl shadow-sm h-fit"><item.icon size={20} className={item.iconColor || 'text-slate-600'} /></div>
+                  <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-blue-200 transition-all flex gap-4 group">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm h-fit group-hover:bg-blue-600 group-hover:text-white transition-colors"><item.icon size={20} className={item.iconColor || 'text-slate-600'} /></div>
                     <div>
                       <h4 className="text-[11px] font-black uppercase text-slate-800">{item.label}</h4>
                       <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase mt-1">{item.desc}</p>
@@ -157,59 +160,43 @@ export const DocsView: React.FC = () => {
                 <Wallet size={18} /> Módulo 02: Recebimentos e Finanças
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100">
+                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100 group hover:bg-emerald-50 transition-colors">
                   <CalendarDays size={20} className="text-emerald-600 mb-3" />
                   <h4 className="text-[10px] font-black uppercase text-slate-800">Mensalidades</h4>
-                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Lançamento e baixa de parcelas mensais dos sócios.</p>
+                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Lançamento e baixa de parcelas mensais dos sócios com histórico de pagamentos.</p>
                 </div>
-                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100">
+                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100 group hover:bg-emerald-50 transition-colors">
                   <UserCheck size={20} className="text-emerald-600 mb-3" />
                   <h4 className="text-[10px] font-black uppercase text-slate-800">Filiações</h4>
-                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Taxas de entrada de novos membros no sistema.</p>
+                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Taxas de adesão para novos associados no momento da matrícula.</p>
                 </div>
-                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100">
+                <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100 group hover:bg-emerald-50 transition-colors">
                   <Landmark size={20} className="text-emerald-600 mb-3" />
                   <h4 className="text-[10px] font-black uppercase text-slate-800">Contribuição Sindical</h4>
-                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Gestão das taxas anuais e sindicais obrigatórias.</p>
+                  <p className="text-[9px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Gestão de tributos e taxas anuais obrigatórias por lei.</p>
                 </div>
               </div>
             </div>
 
-            {/* MÓDULO DOCUMENTOS E PENDENCIAS */}
+            {/* MÓDULO DOCUMENTOS */}
             <div className="space-y-6">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 flex items-center gap-3">
                 <FileText size={18} /> Módulo 03: Documentação e Pendências
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-6 bg-white border border-slate-200 rounded-3xl flex gap-4">
+                <div className="p-6 bg-white border border-slate-200 rounded-3xl flex gap-4 hover:border-amber-200 transition-all">
                   <div className="bg-amber-50 p-3 rounded-2xl text-amber-600"><FileSignature size={20} /></div>
                   <div>
                     <h4 className="text-[11px] font-black uppercase text-slate-800">Declarações e Recursos</h4>
-                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Gestão de processos pendentes, defesos e recursos administrativos.</p>
+                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Gestão de pendências administrativas, defesos e recursos de segurados.</p>
                   </div>
                 </div>
-                <div className="p-6 bg-white border border-slate-200 rounded-3xl flex gap-4">
+                <div className="p-6 bg-white border border-slate-200 rounded-3xl flex gap-4 hover:border-blue-200 transition-all">
                   <div className="bg-blue-50 p-3 rounded-2xl text-blue-600"><Files size={20} /></div>
                   <div>
                     <h4 className="text-[11px] font-black uppercase text-slate-800">Editor de Papel Timbrado</h4>
-                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Criação de modelos oficiais (Declarações, Atestados) com preenchimento automático.</p>
+                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase mt-1">Criação de modelos dinâmicos que puxam dados automáticos do associado.</p>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* MÓDULO RELATORIOS */}
-            <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 flex items-center gap-3">
-                <BarChart2 size={18} /> Módulo 04: Inteligência e Relatórios
-              </h3>
-              <div className="bg-slate-900 p-8 rounded-[40px] text-white">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 leading-relaxed">
-                  Exportação de listas completas em formato PDF ou Impressão direta. O usuário pode filtrar por categoria, localidade ou status de pagamento para gerar relatórios gerenciais precisos.
-                </p>
-                <div className="flex gap-4">
-                  <div className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black uppercase">Relatório de Inadimplência</div>
-                  <div className="bg-white/10 px-4 py-2 rounded-xl text-[9px] font-black uppercase">Ficha Individual do Sócio</div>
                 </div>
               </div>
             </div>
@@ -223,12 +210,12 @@ export const DocsView: React.FC = () => {
             <Section title="Gestão de Unidades (Tenants)">
               <div className="col-span-full space-y-4">
                 <p className="text-xs font-medium text-slate-600 leading-relaxed">
-                  No painel de licenças, você pode criar novas unidades geográficas. Cada unidade tem seu próprio login e senha. Ao criar uma unidade, ela é persistida imediatamente no Supabase.
+                  Como Super Admin, você controla a expansão do sistema através da criação de novas Unidades. Cada unidade representa um isolamento lógico de dados.
                 </p>
                 <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="p-3 bg-white rounded-xl shadow-sm"><ShieldCheck size={20} className="text-blue-600"/></div>
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center">
-                    Acesso Restrito: Apenas usuários com role SUPER_ADMIN podem ver este painel.
+                    Acesso Restrito: Apenas usuários com role MASTER podem visualizar o painel de licenças.
                   </div>
                 </div>
               </div>
@@ -237,22 +224,22 @@ export const DocsView: React.FC = () => {
             <Section title="Migração de Dados JSON">
               <div className="col-span-full space-y-4">
                 <p className="text-xs font-medium text-slate-600 leading-relaxed">
-                  O importador utiliza um <strong>Mapeamento de Três Passos</strong>:
-                  <br/>1. Correspondência exata de nomes de campos (ex: "CPF").
-                  <br/>2. Busca por sinônimos normalizados (ex: "Sócio -> Nome").
-                  <br/>3. Busca inclusiva (ex: "End -> Endereco").
+                  O importador utiliza um <strong>Mapeamento Inteligente</strong>:
+                  <br/>1. Correspondência direta de cabeçalhos.
+                  <br/>2. Busca por sinônimos (ex: "Sócio" &rarr; "Nome").
+                  <br/>3. Busca inclusiva (ex: "End" &rarr; "Endereco").
                 </p>
               </div>
             </Section>
           </article>
         )}
 
-        {activeDocTab === 'componentes' && (
+        {activeDocTab === 'componentes' && ( activeDocTab === 'componentes' && (
           <article className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
             <div className="space-y-4">
               <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Design System & Componentes</h1>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                O SGA utiliza uma estética baseada no "Neobrutalismo Moderno", caracterizada por bordas extremamente arredondadas, contrastes nítidos e sombras suaves que conferem profundidade e clareza.
+                Nossa interface segue os princípios do "Neobrutalismo Moderno": alta legibilidade, bordas suaves de grande raio e sombras projetadas que definem a hierarquia visual.
               </p>
             </div>
 
@@ -260,126 +247,118 @@ export const DocsView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 p-10 rounded-[48px] border border-slate-100 shadow-inner">
               <div className="space-y-6">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  <Palette size={16} /> Paleta de Cores
+                  <Palette size={16} /> Paleta de Cores Mestra
                 </h3>
-                <div className="flex gap-3">
-                  <div className="group flex flex-col gap-2">
-                    <div className="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-600/20" />
-                    <span className="text-[8px] font-black uppercase text-center text-slate-400">Blue-600</span>
-                  </div>
-                  <div className="group flex flex-col gap-2">
-                    <div className="w-14 h-14 bg-slate-900 rounded-2xl shadow-lg shadow-slate-900/20" />
-                    <span className="text-[8px] font-black uppercase text-center text-slate-400">Slate-900</span>
-                  </div>
-                  <div className="group flex flex-col gap-2">
-                    <div className="w-14 h-14 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20" />
-                    <span className="text-[8px] font-black uppercase text-center text-slate-400">Emerald-500</span>
-                  </div>
-                  <div className="group flex flex-col gap-2">
-                    <div className="w-14 h-14 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/20" />
-                    <span className="text-[8px] font-black uppercase text-center text-slate-400">Amber-500</span>
-                  </div>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { bg: 'bg-blue-600', label: 'Primary', hex: '#2563eb' },
+                    { bg: 'bg-slate-900', label: 'Accent', hex: '#0f172a' },
+                    { bg: 'bg-emerald-500', label: 'Success', hex: '#10b981' },
+                    { bg: 'bg-amber-500', label: 'Alert', hex: '#f59e0b' },
+                  ].map((color, i) => (
+                    <div key={i} className="group flex flex-col items-center gap-2">
+                      <div className={`w-16 h-16 ${color.bg} rounded-3xl shadow-lg transition-transform hover:scale-110 cursor-pointer`} />
+                      <span className="text-[8px] font-black uppercase text-slate-500">{color.label}</span>
+                      <span className="text-[7px] font-mono text-slate-400">{color.hex}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="space-y-6">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  <Type size={16} /> Tipografia
+                  <Type size={16} /> Tipografia (Font: Inter)
                 </h3>
-                <div className="space-y-2">
-                  <p className="text-lg font-black uppercase tracking-tighter text-slate-800">Inter Black 900</p>
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Inter Bold 700 (Labels)</p>
-                  <p className="text-xs font-medium text-slate-400">Inter Medium 500 (Textos)</p>
+                <div className="space-y-4">
+                  <div className="border-l-4 border-blue-600 pl-4">
+                    <p className="text-2xl font-black uppercase tracking-tighter text-slate-900">Black 900</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Títulos & Headings</p>
+                  </div>
+                  <div className="border-l-4 border-slate-200 pl-4">
+                    <p className="text-base font-bold text-slate-700">Bold 700</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Labels & Destaques</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* COMPONENTES FORM */}
+            {/* FORM COMPONENTS */}
             <div className="space-y-8">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                 <Box size={20} className="text-blue-600" />
-                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Entradas de Dados (Forms)</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Entradas de Dados (FormFields)</h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2">Preview Interativo</h4>
-                  <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-                    <Input label="Nome Completo" name="ex_input" value="" onChange={() => {}} placeholder="Ex: João da Silva" />
-                    <Select label="UF" name="ex_select" options={['PA', 'MA', 'CE']} value="" onChange={() => {}} />
-                    <TextArea label="Observações" name="ex_area" value="" onChange={() => {}} placeholder="Descreva aqui..." />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2">Galeria de Inputs</h4>
+                  <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6">
+                    <Input label="Input Texto Padrão" name="ex1" value="" onChange={() => {}} placeholder="Ex: Nome Completo" />
+                    <Select label="Select Personalizado" name="ex2" options={['Opção A', 'Opção B']} value="" onChange={() => {}} />
+                    <TextArea label="Área de Texto" name="ex3" value="" onChange={() => {}} placeholder="Descrição longa..." />
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 flex items-center gap-2">
-                    <Terminal size={14} /> Implementação Code
+                    <Terminal size={14} /> Exemplo de Uso (React)
                   </h4>
-                  <div className="bg-slate-900 p-6 rounded-[32px] text-emerald-400 font-mono text-[10px] overflow-x-auto shadow-2xl">
-                    <pre>{`<Input 
-  label="Nome" 
-  name="nome" 
-  value={value} 
-  onChange={handle} 
+                  <div className="bg-slate-950 p-8 rounded-[40px] text-emerald-400 font-mono text-[11px] overflow-x-auto shadow-2xl relative group">
+                    <div className="absolute top-4 right-4 text-slate-700"><Code size={20}/></div>
+                    <pre>{`import { Input } from './components/FormField';
+
+<Input 
+  label="Nome Completo"
+  name="nome"
+  value={member.nome}
+  onChange={handleChange}
+  placeholder="Digite o nome..."
 />`}</pre>
-                    <div className="mt-4 border-t border-white/5 pt-4 text-slate-500 italic">
-                      // Componentes exportados de FormField.tsx
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* SECTIONS E CONTAINERS */}
-            <div className="space-y-8">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <Layout size={20} className="text-blue-600" />
-                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Containers & Layout</h2>
-              </div>
-              
-              <div className="bg-slate-50 p-8 rounded-[40px] border border-slate-100">
-                <Section title="Exemplo de Section">
-                  <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-white/50">
-                    <MousePointer2 className="text-slate-200 mb-2" size={32} />
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Grid Auto-Responsivo (4 Colunas Desktop)</span>
-                  </div>
-                </Section>
-                <div className="mt-6 p-4 bg-slate-900 rounded-2xl text-slate-400 font-mono text-[9px] flex items-center justify-between">
-                  <span>Usage: &lt;Section title="Título"&gt; ...content &lt;/Section&gt;</span>
-                  <div className="flex gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <div className="w-2 h-2 rounded-full bg-amber-500" />
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* BOTÕES */}
+            {/* ACTION BUTTONS */}
             <div className="space-y-8">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                 <MousePointer2 size={20} className="text-blue-600" />
-                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Ações (Buttons)</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Botões de Ação</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex flex-col gap-3">
-                  <button className="bg-blue-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20">Primário</button>
-                  <span className="text-[8px] font-black uppercase text-center text-slate-400">Main Action</span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button className="bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-600/20">Sucesso</button>
-                  <span className="text-[8px] font-black uppercase text-center text-slate-400">Save / Approve</span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button className="bg-slate-900 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-slate-900/10">Escuro</button>
-                  <span className="text-[8px] font-black uppercase text-center text-slate-400">Global Settings</span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button className="bg-red-50 text-red-600 border border-red-100 p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Perigo</button>
-                  <span className="text-[8px] font-black uppercase text-center text-slate-400">Delete / Reset</span>
-                </div>
+                {[
+                  { label: 'Primário', bg: 'bg-blue-600', text: 'text-white', shadow: 'shadow-blue-600/20' },
+                  { label: 'Sucesso', bg: 'bg-emerald-600', text: 'text-white', shadow: 'shadow-emerald-600/20' },
+                  { label: 'Escuro', bg: 'bg-slate-900', text: 'text-white', shadow: 'shadow-slate-900/10' },
+                  { label: 'Alerta', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
+                ].map((btn, i) => (
+                  <div key={i} className="flex flex-col gap-3 group">
+                    <button className={`${btn.bg} ${btn.text} ${btn.border || ''} p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg ${btn.shadow || ''} transition-transform hover:-translate-y-1`}>
+                      {btn.label}
+                    </button>
+                    <span className="text-[8px] font-black uppercase text-center text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">Componente Button</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CARDS & SECTIONS */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <Layers size={20} className="text-blue-600" />
+                <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Containers & Grid</h2>
+              </div>
+              
+              <div className="bg-slate-50 p-10 rounded-[48px] border border-slate-100">
+                <Section title="Section: Agrupamento Lógico">
+                  <div className="col-span-full py-16 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[32px] bg-white group hover:border-blue-400 transition-colors">
+                    <Layout className="text-slate-200 mb-4 group-hover:text-blue-200" size={48} />
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Layout Flexível com Grid de 4 Colunas</span>
+                    <span className="text-[8px] font-bold text-slate-300 mt-2 uppercase tracking-tighter">Responsivo: 1 col (Mob) &rarr; 2 col (Tab) &rarr; 4 col (Desk)</span>
+                  </div>
+                </Section>
               </div>
             </div>
           </article>
-        )}
+        ))}
       </div>
     </div>
   );
