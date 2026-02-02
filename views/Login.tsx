@@ -14,15 +14,17 @@ export const LoginView: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Sincroniza unidades antes de tentar o login para garantir que os dados estejam frescos
-      await syncData();
+      // Sincroniza unidades e captura o resultado direto (fresh data)
+      const syncResult = await syncData();
       
-      const success = login(username, password);
+      // Passa a lista fresca de unidades para o login para evitar o bug de estado atrasado
+      const success = login(username, password, syncResult.tenants);
+      
       if (!success) {
         alert("Credenciais inválidas ou acesso bloqueado.");
       }
     } catch (err) {
-      // Se a sync falhar (ex: sem internet), tenta logar com o que tem local
+      // Fallback para login local caso a sync falhe drasticamente
       const success = login(username, password);
       if (!success) {
         alert("Não foi possível conectar à nuvem e as credenciais locais falharam.");

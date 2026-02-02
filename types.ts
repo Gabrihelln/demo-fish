@@ -41,8 +41,10 @@ export interface DocumentTemplate {
 
 export interface Member {
   id: string;
-  tenant_id: string;
-  updated_at: string;
+  tenantId: string; // Mantido para compatibilidade local
+  tenant_id?: string; // Adicionado para compatibilidade Supabase
+  updatedAt: string;
+  updated_at?: string;
   isSynced: boolean;
   
   codigo_socio: string;

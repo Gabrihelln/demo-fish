@@ -24,7 +24,7 @@ export const SEX_OPTIONS = ['Masculino', 'Feminino', 'Outro'];
 export const STATUS_OPTIONS = ['Ativo', 'Inativo', 'Suspenso', 'Aposentado', 'Falecido'];
 
 export const EMPTY_MEMBER: any = {
-  id: '', tenant_id: '', updated_at: '', isSynced: false,
+  id: '', tenantId: '', updatedAt: '', isSynced: false,
   codigo_socio: '', data_admissao: '', codigo_antigo: '', recadastro: '', codigo_delegacia: '', codigo_comunidade: '',
   data_nascimento: '', nome: '', apelido: '', nome_pai: '', nome_mae: '', estado_civil: '', conjuge: '',
   nacionalidade: '', naturalidade: '', uf_naturalidade: '', endereco: '', numero: '', bairro: '', cidade: '',
