@@ -212,7 +212,14 @@ export const AdminPanelView: React.FC = () => {
         });
         return newItem as Member;
       });
-      importMembers(converted);
+
+      // Importa localmente e captura a lista sanitizada
+      const importedList = importMembers(converted);
+      
+      // Sincroniza imediatamente com a nuvem passando a lista recém-criada
+      // Isso ignora o delay do estado do React
+      await syncData(importedList);
+
       setFeedback({ isOpen: true, type: 'migration', count: converted.length, success: true });
       setPendingData(null);
     } catch (err) { 
@@ -243,7 +250,7 @@ export const AdminPanelView: React.FC = () => {
             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">{feedback.type === 'migration' ? 'Migração Finalizada' : 'Nuvem Atualizada'}</h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
               {feedback.success ? (
-                <><span className="text-blue-600 font-black text-lg">{feedback.count}</span> registros processados com sucesso.</>
+                <><span className="text-blue-600 font-black text-lg">{feedback.count}</span> registros processados e sincronizados com a nuvem.</>
               ) : "Falha na comunicação. Verifique a conectividade com o Supabase."}
             </p>
             <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all">Fechar</button>
@@ -357,7 +364,7 @@ export const AdminPanelView: React.FC = () => {
                   disabled={isImporting || !selectedTargetTenant} 
                   className="flex-1 bg-emerald-600 text-white py-5 rounded-3xl font-black uppercase text-[11px] tracking-widest hover:bg-emerald-700 hover:-translate-y-1 transition-all shadow-xl shadow-emerald-600/20 disabled:opacity-50 disabled:translate-y-0"
                 >
-                  Importar {pendingData.length} registros para {tenants.find(t => t.id === selectedTargetTenant)?.name || 'unidade'}
+                  Importar e Sincronizar {pendingData.length} registros
                 </button>
                 <button onClick={() => setPendingData(null)} className="px-10 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Cancelar</button>
               </div>

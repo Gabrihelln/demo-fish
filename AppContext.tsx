@@ -29,11 +29,11 @@ interface AppContextType {
   deleteMember: (index: number) => void;
   addTemplate: (template: DocumentTemplate) => void;
   deleteTemplate: (id: string) => void;
-  importMembers: (newMembers: Member[]) => void;
+  importMembers: (newMembers: Member[]) => Member[];
   clearDatabase: () => void;
   isOnline: boolean;
   lastSync: string | null;
-  syncData: () => Promise<SyncResult>;
+  syncData: (overrideMembers?: Member[]) => Promise<SyncResult>;
   cloudConnected: boolean;
   cloudKeys: { url: string; key: string };
   updateCloudKeys: (url: string, key: string) => void;
@@ -151,7 +151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return member as Member;
   };
 
-  const syncData = async (): Promise<SyncResult> => {
+  const syncData = async (overrideMembers?: Member[]): Promise<SyncResult> => {
     if (!navigator.onLine || !supabase) return { success: false, count: 0, tenants };
     setCloudConnected(true);
     
@@ -172,8 +172,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const isSuperAdmin = session.user.role === 'SUPER_ADMIN';
       const currentTid = session.user.tenantId;
 
+      // Se overrideMembers for passado, usamos ele (útil para importação imediata)
+      // Caso contrário, usamos o estado allMembers
+      const membersToSync = overrideMembers || allMembers;
+
       // PUSH: Envia dados locais não sincronizados
-      const unsynced = allMembers.filter(m => {
+      const unsynced = membersToSync.filter(m => {
         const syncStatus = !m.isSynced;
         if (isSuperAdmin) return syncStatus;
         return syncStatus && m.tenantId === currentTid;
@@ -189,7 +193,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             cleaned[k] = v === "" ? null : v; 
           });
           
-          // Garante o ID da unidade
           cleaned.tenant_id = m.tenant_id || m.tenantId || currentTid;
           return cleaned;
         });
@@ -201,7 +204,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           throw new Error(upsertError.message);
         }
 
-        // Se deu certo, marca localmente como sincronizado
         const syncedIds = unsynced.map(m => m.id);
         setAllMembers(prev => prev.map(m => 
           syncedIds.includes(m.id) ? { ...m, isSynced: true } : m
@@ -290,14 +292,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     addTemplate: (t: DocumentTemplate) => setTemplates(prev => [...prev, { ...t, tenantId: session.user?.tenantId || '' }]),
     deleteTemplate: (id: string) => setTemplates(prev => prev.filter(x => x.id !== id)),
-    importMembers: (list: Member[]) => setAllMembers(prev => {
-      const map = new Map(prev.map(p => [p.id, p]));
-      list.forEach(l => { 
-        const s = sanitize({...l, isSynced: false}); 
-        map.set(s.id, s); 
+    importMembers: (list: Member[]) => {
+      const sanitizedList = list.map(l => sanitize({...l, isSynced: false}));
+      setAllMembers(prev => {
+        const map = new Map(prev.map(p => [p.id, p]));
+        sanitizedList.forEach(s => map.set(s.id, s));
+        return Array.from(map.values());
       });
-      return Array.from(map.values());
-    }),
+      return sanitizedList;
+    },
     clearDatabase: () => { setAllMembers([]); setTemplates([]); setTenants([]); },
     isOnline, lastSync, syncData, cloudConnected, cloudKeys, 
     updateCloudKeys: (url: string, key: string) => { setCloudKeys({ url, key }); localStorage.setItem(STORAGE_CLOUD_URL, url); localStorage.setItem(STORAGE_CLOUD_KEY, key); }
