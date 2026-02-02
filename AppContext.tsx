@@ -19,6 +19,8 @@ interface AppContextType {
   tenants: Tenant[];
   session: AuthSession;
   isAppReady: boolean;
+  isOfflineReady: boolean;
+  swFailed: boolean; // Novo: indica se o SW falhou no registro
   login: (username: string, pass: string, tenantList?: Tenant[]) => Promise<boolean>;
   logout: () => void;
   addTenant: (name: string, username: string, pass: string) => Promise<void>;
@@ -111,6 +113,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isAppReady, setIsAppReady] = useState(false);
+  const [isOfflineReady, setIsOfflineReady] = useState(() => localStorage.getItem('sga_offline_ready') === 'true');
+  const [swFailed, setSwFailed] = useState(false);
   const [cloudConnected, setCloudConnected] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('sga_last_sync'));
   
@@ -123,6 +127,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!cloudKeys.url || !cloudKeys.key) return null;
     try { return createClient(cloudKeys.url, cloudKeys.key); } catch (e) { return null; }
   }, [cloudKeys.url, cloudKeys.key]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OFFLINE_READY') {
+        setIsOfflineReady(true);
+        localStorage.setItem('sga_offline_ready', 'true');
+      }
+      if (event.data?.type === 'SW_REGISTRATION_FAILED') {
+        setSwFailed(true);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   useEffect(() => {
     const handleStatusChange = () => {
@@ -284,7 +306,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (session.user.role === 'SUPER_ADMIN') return allMembers;
       return allMembers.filter(m => m.tenant_id === session.user?.tenantId);
     }, [allMembers, session.user?.tenantId]),
-    templates, tenants, session, isAppReady, login,
+    templates, tenants, session, isAppReady, isOfflineReady, swFailed, login,
     logout: () => {
       setSession({ user: null });
       localStorage.removeItem('sga_session');
@@ -355,6 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     clearDatabase: () => {
       setAllMembers([]); setTemplates([]); setTenants([]);
       localStorage.removeItem('sga_last_sync'); localStorage.removeItem('sga_session');
+      localStorage.removeItem('sga_offline_ready');
       indexedDB.deleteDatabase(DB_NAME);
       window.location.reload();
     },
