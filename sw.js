@@ -1,9 +1,9 @@
 
 const CACHE_NAME = 'sga-v1';
 const ASSETS = [
-  './',
-  './index.html',
-  './index.tsx',
+  '/',
+  '/index.html',
+  '/index.tsx',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
   'https://esm.sh/lucide-react@^0.463.0',
@@ -17,7 +17,6 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
     }).then(() => {
-      // Notifica todos os clientes abertos que o cache está pronto
       return self.clients.matchAll().then(clients => {
         clients.forEach(client => client.postMessage({ type: 'OFFLINE_READY' }));
       });
@@ -30,6 +29,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Não faz cache de chamadas de API externas ou Supabase
   if (event.request.url.includes('supabase.co') || event.request.url.includes('google')) {
     return;
   }
