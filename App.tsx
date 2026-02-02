@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './AppContext';
 import { NavigationProvider, useNavigation } from './NavigationContext';
@@ -9,6 +10,7 @@ import { DocumentosListaView } from './views/DocumentosLista';
 import { RelatoriosView } from './views/Relatorios';
 import { LoginView } from './views/Login';
 import { AdminPanelView } from './views/AdminPanel';
+import { DocsView } from './views/Docs';
 import { 
   Menu as MenuIcon, Settings, Wallet, Landmark, 
   Wifi, WifiOff, RefreshCw, ShieldCheck
@@ -69,6 +71,7 @@ const MainLayout: React.FC = () => {
       switch (activeView) {
         case 'admin-panel': return <AdminPanelView />;
         case 'relatorios': return <RelatoriosView />;
+        case 'docs': return <DocsView />;
         default: return <AdminPanelView />;
       }
     }

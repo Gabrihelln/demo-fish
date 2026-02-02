@@ -25,6 +25,7 @@ export const Sidebar: React.FC = () => {
     ? [
         { id: 'admin-panel', label: 'Gestão de Licenças', icon: ShieldIcon },
         { id: 'relatorios', label: 'Estatísticas Globais', icon: BarChart2 },
+        { id: 'docs', label: 'Documentação', icon: BookOpen },
         { id: 'sair', label: 'Sair do Sistema', icon: LogOut },
       ]
     : [
