@@ -239,8 +239,8 @@ export const DocsView: React.FC = () => {
                 <p className="text-xs font-medium text-slate-600 leading-relaxed">
                   O importador utiliza um <strong>Mapeamento de Três Passos</strong>:
                   <br/>1. Correspondência exata de nomes de campos (ex: "CPF").
-                  <br/>2. Busca por sinônimos normalizados (ex: "Sócio" -> "Nome").
-                  <br/>3. Busca inclusiva (ex: "End" -> "Endereco").
+                  <br/>2. Busca por sinônimos normalizados (ex: "Sócio -> Nome").
+                  <br/>3. Busca inclusiva (ex: "End -> Endereco").
                 </p>
               </div>
             </Section>
