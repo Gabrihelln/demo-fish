@@ -3,12 +3,12 @@ import React from 'react';
 import { 
   Layout as LayoutIcon, Cloud, Users, 
   Database, ShieldCheck, Globe, Clock, 
-  WifiOff, CheckCircle2, Loader2, Zap, AlertCircle
+  WifiOff, CheckCircle2, Loader2, Zap
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 
 export const HomeView: React.FC = () => {
-  const { members, lastSync, isOnline, isOfflineReady, swFailed } = useApp();
+  const { members, lastSync, isOnline, isOfflineReady } = useApp();
 
   const stats = [
     { label: 'Associados', value: members.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -18,26 +18,8 @@ export const HomeView: React.FC = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* MODO PREVIEW / ERRO DE REGISTRO */}
-      {swFailed && isOnline && !isOfflineReady && (
-        <div className="bg-amber-500 text-white p-8 rounded-[40px] shadow-2xl shadow-amber-600/20 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md">
-              <AlertCircle size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black uppercase tracking-tighter">Modo Offline Indisponível (Preview)</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-100">O navegador bloqueou o modo offline por segurança. Use apenas com internet neste ambiente de testes.</p>
-            </div>
-          </div>
-          <div className="bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
-             <span className="text-[10px] font-black uppercase tracking-widest">Acesso Web-Only Ativo</span>
-          </div>
-        </div>
-      )}
-
       {/* CARD DE STATUS OFFLINE - BARRA DE "INSTALAÇÃO" */}
-      {!isOfflineReady && isOnline && !swFailed && (
+      {!isOfflineReady && isOnline && (
         <div className="bg-blue-600 text-white p-8 rounded-[40px] shadow-2xl shadow-blue-600/20 flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
           <div className="flex items-center gap-6">
             <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md">
