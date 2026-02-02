@@ -32,18 +32,22 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600 rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-blue-600 dark:bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden transition-colors duration-700">
+      
+      {/* Camada de Gradiente Dinâmico */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 opacity-100 transition-all duration-700" />
+
+      {/* Esferas Decorativas (Blobs) mais intensas */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400 dark:bg-blue-600 rounded-full blur-[140px] opacity-40 animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-400 dark:bg-emerald-600 rounded-full blur-[140px] opacity-30 animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
-      <div className="w-full max-w-md animate-in zoom-in-95 duration-500">
-        <div className="bg-white dark:bg-slate-900 rounded-[48px] shadow-2xl p-10 lg:p-14 relative z-10 border border-slate-100 dark:border-slate-800">
+      <div className="w-full max-w-md animate-in zoom-in-95 duration-700 relative z-10">
+        <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-[48px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] p-10 lg:p-14 border border-white/20 dark:border-white/5">
           <div className="text-center mb-12">
-            <div className="bg-blue-600 w-16 h-16 rounded-[24px] flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-blue-600/30">
-              <Users size={32} />
+            <div className="bg-blue-600 w-20 h-20 rounded-[28px] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-blue-600/40 border-4 border-white/20">
+              <Users size={36} />
             </div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Acesso ao SGA</h1>
             <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Plataforma de Gestão de Associados</p>
@@ -60,7 +64,7 @@ export const LoginView: React.FC = () => {
                   type="text" 
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
                   placeholder="Seu nome de usuário"
                   required
                 />
@@ -77,7 +81,7 @@ export const LoginView: React.FC = () => {
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
                   placeholder="••••••••"
                   required
                 />
@@ -87,11 +91,11 @@ export const LoginView: React.FC = () => {
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-600 dark:hover:bg-blue-500 hover:-translate-y-1 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
+              className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 hover:-translate-y-1 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50"
             >
               {isLoading ? (
                 <>
-                  <RefreshCw className="animate-spin" size={16} /> Verificando Unidades...
+                  <RefreshCw className="animate-spin" size={16} /> Verificando...
                 </>
               ) : (
                 <>
@@ -101,14 +105,15 @@ export const LoginView: React.FC = () => {
             </button>
           </form>
 
-          {/*<div className="mt-12 flex items-center justify-center gap-3 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-            <ShieldCheck size={14} className="text-emerald-500" />
-            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Conexão Segura e Criptografada</span> 
+          {/* <div className="mt-12 flex items-center justify-center gap-3">
+             <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800"></div>
+             <span className="text-[8px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.3em]">Orbio Tech</span>
+             <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800"></div>
           </div> */}
         </div>
 
-        <p className="text-center text-slate-400 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-8">
-          Desenvolvido por Orbio Tech &copy; 2026
+        <p className="text-center text-white/40 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-8">
+         Desenvolvido por Orbio Tech &copy; 2026
         </p>
       </div>
     </div>
