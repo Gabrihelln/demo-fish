@@ -95,17 +95,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSwFailed(true);
       }
     };
-    window.addEventListener('message', handleMessage);
-    navigator.serviceWorker?.addEventListener('message', handleMessage);
     
-    // Timeout de segurança para falha silenciosa do SW
+    window.addEventListener('message', handleMessage);
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
+    
+    // Timeout de segurança reduzido para 6 segundos
     const timer = setTimeout(() => {
       if (!isOfflineReady) setSwFailed(true);
-    }, 10000);
+    }, 6000);
 
     return () => {
       window.removeEventListener('message', handleMessage);
-      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      }
       clearTimeout(timer);
     };
   }, [isOfflineReady]);
