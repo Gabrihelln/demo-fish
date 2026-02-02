@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   UserPlus, Save, Trash2, ChevronLeft, ChevronRight, 
   Upload, Printer, X, FileSignature, Table as TableIcon,
-  FileText, Download, Search, User as UserIcon
+  FileText, Download, Search, User as UserIcon, Edit3, Eye
 } from 'lucide-react';
 import { Member, TabType, DocumentTemplate } from '../types';
 import { useApp } from '../AppContext';
@@ -19,12 +19,26 @@ export const SociosView: React.FC = () => {
   const { members, addMember, updateMember, deleteMember, templates } = useApp();
   const [currentIndex, setCurrentIndex] = useState(members.length > 0 ? 0 : -1);
   const [currentMember, setCurrentMember] = useState<Member>(currentIndex >= 0 ? members[currentIndex] : EMPTY_MEMBER);
-  const [activeTab, setActiveTab] = useState<TabType>('frente');
+  
+  // Estados do Modal de Edição/Inclusão
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [formMember, setFormMember] = useState<Member>(EMPTY_MEMBER);
+  const [activeModalTab, setActiveModalTab] = useState<TabType>('frente');
+  const [activeViewTab, setActiveViewTab] = useState<TabType>('frente');
+
+  // Estado do Modal de Documentos
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentIndex >= 0 && members[currentIndex]) {
+      setCurrentMember(members[currentIndex]);
+    }
+  }, [members, currentIndex]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,26 +50,36 @@ export const SociosView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setCurrentMember(prev => ({ ...prev, [name]: value }));
+    setFormMember(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = () => {
-    if (!currentMember.nome) return alert("Nome completo é obrigatório.");
-    if (currentIndex === -1) {
-      addMember(currentMember);
-      setCurrentIndex(members.length);
+    if (!formMember.nome) return alert("Nome completo é obrigatório.");
+    if (modalMode === 'add') {
+      addMember(formMember);
+      setCurrentIndex(members.length); // Vai para o novo
     } else {
-      updateMember(currentIndex, currentMember);
+      updateMember(currentIndex, formMember);
     }
-    alert("Dados salvos com sucesso!");
+    setIsEditModalOpen(false);
+    alert("Dados processados com sucesso!");
   };
 
-  const handleNew = () => {
-    setCurrentMember({ ...EMPTY_MEMBER, id: crypto.randomUUID(), codigo_socio: '', nome: '' });
-    setCurrentIndex(-1);
-    setActiveTab('frente');
+  const handleOpenAdd = () => {
+    setModalMode('add');
+    setFormMember({ ...EMPTY_MEMBER, id: crypto.randomUUID() });
+    setActiveModalTab('frente');
+    setIsEditModalOpen(true);
+  };
+
+  const handleOpenEdit = () => {
+    if (currentIndex === -1) return alert("Nenhum sócio selecionado para editar.");
+    setModalMode('edit');
+    setFormMember({ ...currentMember });
+    setActiveModalTab('frente');
+    setIsEditModalOpen(true);
   };
 
   const navigate = (dir: 'prev' | 'next') => {
@@ -64,14 +88,12 @@ export const SociosView: React.FC = () => {
       ? (currentIndex > 0 ? currentIndex - 1 : members.length - 1)
       : (currentIndex < members.length - 1 ? currentIndex + 1 : 0);
     setCurrentIndex(nextIdx);
-    setCurrentMember(members[nextIdx]);
   };
 
   const handleSelectSuggestion = (member: Member) => {
     const idx = members.findIndex(m => m.id === member.id);
     if (idx !== -1) {
       setCurrentIndex(idx);
-      setCurrentMember(members[idx]);
       setSearchTerm('');
       setShowSuggestions(false);
     }
@@ -139,8 +161,210 @@ export const SociosView: React.FC = () => {
     setIsDocModalOpen(false);
   };
 
+  const renderMemberForm = (data: Member, onChange: any, isReadOnly: boolean = false) => {
+    const tab = isReadOnly ? activeViewTab : activeModalTab;
+    
+    return (
+      <div className="space-y-8">
+        {tab === 'frente' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <Section title="1. Identificação Administrativa">
+              <Input label="Código Sócio" name="codigo_socio" value={data.codigo_socio} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Código Antigo" name="codigo_antigo" value={data.codigo_antigo} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Comunidade" name="codigo_comunidade" value={data.codigo_comunidade} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Recadastro" name="recadastro" value={data.recadastro} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Admissão" name="data_admissao" value={data.data_admissao} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Nascimento" name="data_nascimento" value={data.data_nascimento} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+              <div className="lg:col-span-3 space-y-6">
+                <Section title="2. Dados Pessoais">
+                  <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Nome Completo" name="nome" value={data.nome} onChange={onChange} />
+                  <Input label="Apelido" name="apelido" value={data.apelido} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                  <Input label="Nacionalidade" name="nacionalidade" value={data.nacionalidade} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                  <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Nome do Pai" name="nome_pai" value={data.nome_pai} onChange={onChange} />
+                  <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Nome da Mãe" name="nome_mae" value={data.nome_mae} onChange={onChange} />
+                  <Input label="Naturalidade" name="naturalidade" value={data.naturalidade} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                  <Select label="UF Natural" name="uf_naturalidade" options={UF_OPTIONS} value={data.uf_naturalidade} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                  <Input label="Profissão" name="profissao" value={data.profissao} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                </Section>
+                <Section title="3. Trabalho e Contato">
+                  <Input label="Local de Trabalho" name="local_trabalho" value={data.local_trabalho} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                  <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Email" name="email" value={data.email} onChange={onChange} />
+                  <Input label="Telefone" name="telefone" value={data.telefone} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+                </Section>
+              </div>
+              
+              <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-6 flex flex-col items-center gap-4 shadow-sm h-fit">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Foto do Sócio</h3>
+                <div className="w-full max-w-[180px] aspect-square bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl flex items-center justify-center overflow-hidden relative group shadow-inner transition-all hover:border-blue-300">
+                  {data.photoUrl ? (
+                    <img src={data.photoUrl} className="w-full h-full object-cover" alt="Sócio" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-slate-300 dark:text-slate-600">
+                      <Upload size={32} />
+                      <span className="text-[8px] font-bold uppercase tracking-tighter">{isReadOnly ? 'Sem Foto' : 'Clique p/ enviar'}</span>
+                    </div>
+                  )}
+                  {!isReadOnly && (
+                    <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity backdrop-blur-[2px]">
+                      <Upload className="text-white" size={24} />
+                      <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => onChange({ target: { name: 'photoUrl', value: reader.result as string } });
+                          reader.readAsDataURL(f);
+                        }
+                      }} />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Section title="4. Localização Residencial">
+              <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Endereço" name="endereco" value={data.endereco} onChange={onChange} />
+              <Input label="Número" name="numero" value={data.numero} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Bairro" name="bairro" value={data.bairro} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Cidade" name="cidade" value={data.cidade} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Select label="UF" name="uf" options={UF_OPTIONS} value={data.uf} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CEP" name="cep" value={data.cep} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+          </div>
+        )}
+
+        {tab === 'outros' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <Section title="1. Documentação Civil">
+              <Select label="Estado Civil" name="estado_civil" options={MARITAL_STATUS_OPTIONS} value={data.estado_civil} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Select label="Alfabetizado" name="alfabetizado" options={YES_NO_OPTIONS} value={data.alfabetizado} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="RG" name="rg" value={data.rg} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Órgão Expedidor" name="orgao_expedidor_rg" value={data.orgao_expedidor_rg} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Expedição RG" name="data_expedicao_rg" value={data.data_expedicao_rg} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CPF" name="cpf" value={data.cpf} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CTPS" name="ctps" value={data.ctps} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Série CTPS" name="serie_ctps" value={data.serie_ctps} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Expedição CTPS" name="data_expedicao_ctps" value={data.data_expedicao_ctps} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Título de Eleitor" name="titulo_eleitor" value={data.titulo_eleitor} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Zona" name="zona_eleitoral" value={data.zona_eleitoral} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Seção" name="secao_eleitoral" value={data.secao_eleitoral} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CAEPF" name="caepf" value={data.caepf} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+
+            <Section title="2. Dados Adicionais">
+              <Select label="Sexo" name="sexo" options={SEX_OPTIONS} value={data.sexo} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="PIS" name="pis" value={data.pis} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CEI" name="cei" value={data.cei} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="NIT" name="nit" value={data.nit} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CIR" name="cir" value={data.cir} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input type="date" label="Emissão RGP" name="data_emissao_rgp" value={data.data_emissao_rgp} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+
+            <Section title="3. Dados da Embarcação">
+              <Input className={`lg:col-span-2 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Embarcação" name="embarcacao" value={data.embarcacao} onChange={onChange} />
+              <Input label="Embarcação RGP" name="embarcacao_rgp" value={data.embarcacao_rgp} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Select label="RGP UF" name="rgp_uf" options={UF_OPTIONS} value={data.rgp_uf} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="AB" name="ab" value={data.ab} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Nº Tripulantes" name="numero_tripulantes" value={data.numero_tripulantes} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="CPF Proprietário" name="cpf_proprietario" value={data.cpf_proprietario} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+          </div>
+        )}
+
+        {tab === 'verso' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <Section title="Arquivamento">
+              <Input label="Pasta Associado" name="pasta_socios" value={data.pasta_socios} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Pasta Embarcação" name="pasta_embarcacao" value={data.pasta_embarcacao} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="ID Defeso" name="id_defeso" value={data.id_defeso} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+              <Input label="Outros Documentos" name="outros_documentos" value={data.outros_documentos} onChange={onChange} className={isReadOnly ? 'pointer-events-none opacity-80' : ''} />
+            </Section>
+
+            <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[32px] shadow-sm overflow-hidden">
+              <div className="p-8 bg-slate-50 dark:bg-slate-800/30 border-b dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-sm font-black uppercase text-slate-700 dark:text-slate-200 flex items-center gap-2"><TableIcon size={18} /> Dependentes do Associado</h3>
+                {!isReadOnly && (
+                  <button onClick={() => onChange({ target: { name: 'dependents', value: [...data.dependents, {id: Date.now().toString(), name: '', birthDate: '', relationship: ''}] } })} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">+ Adicionar</button>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800 text-[9px] font-black uppercase text-slate-400">
+                    <tr><th className="px-8 py-4 text-left">Nome Dependente</th><th className="px-8 py-4 text-left">Nascimento</th><th className="px-8 py-4 text-left">Parentesco</th>{!isReadOnly && <th className="px-8 py-4 text-right">Ação</th>}</tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {data.dependents.map(d => (
+                      <tr key={d.id}>
+                        <td className="px-6 py-3"><input className={`w-full p-2 bg-transparent focus:bg-white dark:focus:bg-slate-800 rounded border border-transparent focus:border-blue-200 outline-none text-slate-900 dark:text-white ${isReadOnly ? 'pointer-events-none' : ''}`} value={d.name} onChange={e => onChange({ target: { name: 'dependents', value: data.dependents.map(x => x.id === d.id ? {...x, name: e.target.value} : x) } })} /></td>
+                        <td className="px-6 py-3"><input type="date" className={`w-full p-2 bg-transparent outline-none cursor-pointer text-slate-900 dark:text-white ${isReadOnly ? 'pointer-events-none' : ''}`} value={d.birthDate} onChange={e => onChange({ target: { name: 'dependents', value: data.dependents.map(x => x.id === d.id ? {...x, birthDate: e.target.value} : x) } })} /></td>
+                        <td className="px-6 py-3"><input className={`w-full p-2 bg-transparent outline-none text-slate-900 dark:text-white ${isReadOnly ? 'pointer-events-none' : ''}`} value={d.relationship} onChange={e => onChange({ target: { name: 'dependents', value: data.dependents.map(x => x.id === d.id ? {...x, relationship: e.target.value} : x) } })} /></td>
+                        {!isReadOnly && (
+                          <td className="px-8 py-3 text-right"><button onClick={() => onChange({ target: { name: 'dependents', value: data.dependents.filter(x => x.id !== d.id) } })} className="text-red-400 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={18} /></button></td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <Section title="Observações">
+              <TextArea className={`lg:col-span-4 ${isReadOnly ? 'pointer-events-none opacity-80' : ''}`} label="Anotações Gerais" name="observacao" value={data.observacao} onChange={onChange} placeholder="Histórico, pendências ou observações..." />
+            </Section>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-32">
+      {/* MODAL DE EDIÇÃO / INCLUSÃO */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[250] flex flex-col p-4 md:p-10 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-6xl mx-auto rounded-[48px] shadow-2xl overflow-hidden flex flex-col flex-1 border border-white/10">
+            <header className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30">
+              <div className="flex items-center gap-6">
+                <div className={`p-4 rounded-[24px] text-white shadow-xl ${modalMode === 'add' ? 'bg-blue-600 shadow-blue-600/20' : 'bg-emerald-600 shadow-emerald-600/20'}`}>
+                  {modalMode === 'add' ? <UserPlus size={24} /> : <Edit3 size={24} />}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                    {modalMode === 'add' ? 'Incluir Novo Sócio' : `Editando: ${formMember.nome || 'Associado'}`}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Preencha os dados abaixo com atenção
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-2xl text-slate-400 hover:text-red-500 transition-all">
+                <X size={24} />
+              </button>
+            </header>
+
+            <div className="p-8 flex-1 overflow-y-auto scrollbar-hide">
+              <div className="flex gap-1 bg-slate-200/50 dark:bg-slate-900/50 p-1.5 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 mb-8 mx-auto">
+                {(['frente', 'outros', 'verso'] as TabType[]).map((tab) => (
+                  <button key={tab} onClick={() => setActiveModalTab(tab)} className={`px-12 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeModalTab === tab ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              {renderMemberForm(formMember, handleFormChange, false)}
+            </div>
+
+            <footer className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex justify-end gap-4">
+              <button onClick={() => setIsEditModalOpen(false)} className="px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
+              <button onClick={handleSave} className="bg-emerald-600 text-white px-12 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:-translate-y-1 transition-all shadow-xl shadow-emerald-600/20">
+                <Save size={18} /> Salvar Alterações
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
       {isDocModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white/10">
@@ -182,6 +406,7 @@ export const SociosView: React.FC = () => {
         </div>
       )}
 
+      {/* HEADER DE PESQUISA E NAVEGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-white dark:bg-slate-900 p-4 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm relative z-[60]">
         <div className="md:col-span-3 flex items-center gap-4 pl-4">
           <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-600/20">
@@ -244,196 +469,42 @@ export const SociosView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-1 bg-slate-200/50 dark:bg-slate-900/50 p-1 rounded-2xl w-fit border border-slate-200 dark:border-slate-800">
-        {(['frente', 'outros', 'verso'] as TabType[]).map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
-            {tab}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 bg-slate-200/50 dark:bg-slate-900/50 p-1 rounded-2xl w-fit border border-slate-200 dark:border-slate-800">
+          {(['frente', 'outros', 'verso'] as TabType[]).map((tab) => (
+            <button key={tab} onClick={() => setActiveViewTab(tab)} className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeViewTab === tab ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
+              {tab}
+            </button>
+          ))}
+        </div>
+        
+        <div className="bg-blue-50/50 dark:bg-blue-900/10 px-6 py-3 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-3">
+          <Eye size={16} className="text-blue-600" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">Modo Visualização</span>
+        </div>
       </div>
 
-      <div className="mt-8">
-        {activeTab === 'frente' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <Section title="1. Identificação Administrativa">
-              <Input label="Código Sócio" name="codigo_socio" value={currentMember.codigo_socio} onChange={handleInputChange} />
-              <Input label="Código Antigo" name="codigo_antigo" value={currentMember.codigo_antigo} onChange={handleInputChange} />
-              <Input label="Comunidade" name="codigo_comunidade" value={currentMember.codigo_comunidade} onChange={handleInputChange} />
-              <Input type="date" label="Recadastro" name="recadastro" value={currentMember.recadastro} onChange={handleInputChange} />
-              <Input type="date" label="Admissão" name="data_admissao" value={currentMember.data_admissao} onChange={handleInputChange} />
-              <Input type="date" label="Nascimento" name="data_nascimento" value={currentMember.data_nascimento} onChange={handleInputChange} />
-            </Section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-              <div className="lg:col-span-3 space-y-6">
-                <Section title="2. Dados Pessoais">
-                  <Input className="lg:col-span-2" label="Nome Completo" name="nome" value={currentMember.nome} onChange={handleInputChange} />
-                  <Input label="Apelido" name="apelido" value={currentMember.apelido} onChange={handleInputChange} />
-                  <Input label="Nacionalidade" name="nacionalidade" value={currentMember.nacionalidade} onChange={handleInputChange} />
-                  <Input className="lg:col-span-2" label="Nome do Pai" name="nome_pai" value={currentMember.nome_pai} onChange={handleInputChange} />
-                  <Input className="lg:col-span-2" label="Nome da Mãe" name="nome_mae" value={currentMember.nome_mae} onChange={handleInputChange} />
-                  <Input label="Naturalidade" name="naturalidade" value={currentMember.naturalidade} onChange={handleInputChange} />
-                  <Select label="UF Natural" name="uf_naturalidade" options={UF_OPTIONS} value={currentMember.uf_naturalidade} onChange={handleInputChange} />
-                  <Input label="Profissão" name="profissao" value={currentMember.profissao} onChange={handleInputChange} />
-                </Section>
-                <Section title="3. Trabalho e Contato">
-                  <Input label="Local de Trabalho" name="local_trabalho" value={currentMember.local_trabalho} onChange={handleInputChange} />
-                  <Input className="lg:col-span-2" label="Email" name="email" value={currentMember.email} onChange={handleInputChange} />
-                  <Input label="Telefone" name="telefone" value={currentMember.telefone} onChange={handleInputChange} />
-                </Section>
-              </div>
-              
-              <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-6 flex flex-col items-center gap-4 shadow-sm h-fit lg:sticky lg:top-28">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Foto do Sócio</h3>
-                <div className="w-full max-w-[180px] aspect-square bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl flex items-center justify-center overflow-hidden relative group shadow-inner transition-all hover:border-blue-300">
-                  {currentMember.photoUrl ? (
-                    <img src={currentMember.photoUrl} className="w-full h-full object-cover" alt="Sócio" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-300 dark:text-slate-600">
-                      <Upload size={32} />
-                      <span className="text-[8px] font-bold uppercase tracking-tighter">Clique p/ enviar</span>
-                    </div>
-                  )}
-                  <label className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity backdrop-blur-[2px]">
-                    <Upload className="text-white" size={24} />
-                    <input type="file" className="hidden" accept="image/*" onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setCurrentMember(p => ({...p, photoUrl: reader.result as string, foto: reader.result as string}));
-                        reader.readAsDataURL(f);
-                      }
-                    }} />
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <Section title="4. Localização Residencial">
-              <Input className="lg:col-span-2" label="Endereço" name="endereco" value={currentMember.endereco} onChange={handleInputChange} />
-              <Input label="Número" name="numero" value={currentMember.numero} onChange={handleInputChange} />
-              <Input label="Bairro" name="bairro" value={currentMember.bairro} onChange={handleInputChange} />
-              <Input label="Cidade" name="cidade" value={currentMember.cidade} onChange={handleInputChange} />
-              <Select label="UF" name="uf" options={UF_OPTIONS} value={currentMember.uf} onChange={handleInputChange} />
-              <Input label="CEP" name="cep" value={currentMember.cep} onChange={handleInputChange} />
-            </Section>
-
-            <Section title="5. Outras Informações">
-              <Input label="Nº DAP" name="numero_dap" value={currentMember.numero_dap} onChange={handleInputChange} />
-              <Input label="Grupo DAP" name="grupo_dap" value={currentMember.grupo_dap} onChange={handleInputChange} />
-              <Input type="date" label="Validade DAP" name="validade_dap" value={currentMember.validade_dap} onChange={handleInputChange} />
-              <Input label="Categoria" name="codigo_categoria" value={currentMember.codigo_categoria} onChange={handleInputChange} />
-              <Input label="SUS" name="sus" value={currentMember.sus} onChange={handleInputChange} />
-              <Select label="Fator Sanguíneo" name="tipo_sanguineo" options={BLOOD_TYPE_OPTIONS} value={currentMember.tipo_sanguineo} onChange={handleInputChange} />
-            </Section>
-          </div>
-        )}
-
-        {activeTab === 'outros' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <Section title="1. Documentação Civil">
-              <Select label="Estado Civil" name="estado_civil" options={MARITAL_STATUS_OPTIONS} value={currentMember.estado_civil} onChange={handleInputChange} />
-              <Select label="Alfabetizado" name="alfabetizado" options={YES_NO_OPTIONS} value={currentMember.alfabetizado} onChange={handleInputChange} />
-              <Input label="RG" name="rg" value={currentMember.rg} onChange={handleInputChange} />
-              <Input label="Órgão Expedidor" name="orgao_expedidor_rg" value={currentMember.orgao_expedidor_rg} onChange={handleInputChange} />
-              <Input type="date" label="Expedição RG" name="data_expedicao_rg" value={currentMember.data_expedicao_rg} onChange={handleInputChange} />
-              <Input label="CPF" name="cpf" value={currentMember.cpf} onChange={handleInputChange} />
-              <Input label="CTPS" name="ctps" value={currentMember.ctps} onChange={handleInputChange} />
-              <Input label="Série CTPS" name="serie_ctps" value={currentMember.serie_ctps} onChange={handleInputChange} />
-              <Input type="date" label="Expedição CTPS" name="data_expedicao_ctps" value={currentMember.data_expedicao_ctps} onChange={handleInputChange} />
-              <Input label="Título de Eleitor" name="titulo_eleitor" value={currentMember.titulo_eleitor} onChange={handleInputChange} />
-              <Input label="Zona" name="zona_eleitoral" value={currentMember.zona_eleitoral} onChange={handleInputChange} />
-              <Input label="Seção" name="secao_eleitoral" value={currentMember.secao_eleitoral} onChange={handleInputChange} />
-              <Input label="CAEPF" name="caepf" value={currentMember.caepf} onChange={handleInputChange} />
-            </Section>
-
-            <Section title="2. Dados Adicionais">
-              <Select label="Sexo" name="sexo" options={SEX_OPTIONS} value={currentMember.sexo} onChange={handleInputChange} />
-              <Input label="PIS" name="pis" value={currentMember.pis} onChange={handleInputChange} />
-              <Input label="CEI" name="cei" value={currentMember.cei} onChange={handleInputChange} />
-              <Input label="NIT" name="nit" value={currentMember.nit} onChange={handleInputChange} />
-              <Input label="CIR" name="cir" value={currentMember.cir} onChange={handleInputChange} />
-              <Input type="date" label="Emissão RGP" name="data_emissao_rgp" value={currentMember.data_emissao_rgp} onChange={handleInputChange} />
-            </Section>
-
-            <Section title="3. Dados da Embarcação">
-              <Input className="lg:col-span-2" label="Embarcação" name="embarcacao" value={currentMember.embarcacao} onChange={handleInputChange} />
-              <Input label="Embarcação RGP" name="embarcacao_rgp" value={currentMember.embarcacao_rgp} onChange={handleInputChange} />
-              <Select label="RGP UF" name="rgp_uf" options={UF_OPTIONS} value={currentMember.rgp_uf} onChange={handleInputChange} />
-              <Input label="AB" name="ab" value={currentMember.ab} onChange={handleInputChange} />
-              <Input label="Nº Tripulantes" name="numero_tripulantes" value={currentMember.numero_tripulantes} onChange={handleInputChange} />
-              <Input label="CPF Proprietário" name="cpf_proprietario" value={currentMember.cpf_proprietario} onChange={handleInputChange} />
-            </Section>
-
-            <Section title="4. Controle da Situação">
-              <Select label="Situação" name="situacao" options={STATUS_OPTIONS} value={currentMember.situacao} onChange={handleInputChange} />
-              <Input label="Último Mês Pago" name="ultimo_mes_pago" value={currentMember.ultimo_mes_pago} onChange={handleInputChange} />
-              <Input label="Nº Benefício" name="numero_beneficio" value={currentMember.numero_beneficio} onChange={handleInputChange} />
-              <Input label="Espécie" name="especie" value={currentMember.especie} onChange={handleInputChange} />
-              <Input type="date" label="Falecimento" name="data_falecimento" value={currentMember.data_falecimento} onChange={handleInputChange} />
-              <Input type="date" label="Transferência" name="data_transferencia" value={currentMember.data_transferencia} onChange={handleInputChange} />
-              <Input label="Código GPS" name="codigo_gps_mpa" value={currentMember.codigo_gps_mpa} onChange={handleInputChange} />
-              <Input label="Senha INSS" name="senha_inss_mpa" value={currentMember.senha_inss_mpa} onChange={handleInputChange} />
-            </Section>
-          </div>
-        )}
-
-        {activeTab === 'verso' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <Section title="Arquivamento">
-              <Input label="Pasta Associado" name="pasta_socios" value={currentMember.pasta_socios} onChange={handleInputChange} />
-              <Input label="Pasta Embarcação" name="pasta_embarcacao" value={currentMember.pasta_embarcacao} onChange={handleInputChange} />
-              <Input label="ID Defeso" name="id_defeso" value={currentMember.id_defeso} onChange={handleInputChange} />
-              <Input label="Outros Documentos" name="outros_documentos" value={currentMember.outros_documentos} onChange={handleInputChange} />
-            </Section>
-
-            <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-[32px] shadow-sm overflow-hidden">
-              <div className="p-8 bg-slate-50 dark:bg-slate-800/30 border-b dark:border-slate-800 flex justify-between items-center">
-                <h3 className="text-sm font-black uppercase text-slate-700 dark:text-slate-200 flex items-center gap-2"><TableIcon size={18} /> Dependentes do Associado</h3>
-                <button onClick={() => setCurrentMember(p => ({...p, dependents: [...p.dependents, {id: Date.now().toString(), name: '', birthDate: '', relationship: ''}]}))} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">+ Adicionar</button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800 text-[9px] font-black uppercase text-slate-400">
-                    <tr><th className="px-8 py-4 text-left">Nome Dependente</th><th className="px-8 py-4 text-left">Nascimento</th><th className="px-8 py-4 text-left">Parentesco</th><th className="px-8 py-4 text-right">Ação</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {currentMember.dependents.map(d => (
-                      <tr key={d.id}>
-                        <td className="px-6 py-3"><input className="w-full p-2 bg-transparent focus:bg-white dark:focus:bg-slate-800 rounded border border-transparent focus:border-blue-200 outline-none text-slate-900 dark:text-white" value={d.name} onChange={e => setCurrentMember(p => ({...p, dependents: p.dependents.map(x => x.id === d.id ? {...x, name: e.target.value} : x)}))} /></td>
-                        <td className="px-6 py-3">
-                          <input 
-                            type="date" 
-                            className="w-full p-2 bg-transparent outline-none cursor-pointer text-slate-900 dark:text-white" 
-                            value={d.birthDate} 
-                            onChange={e => setCurrentMember(p => ({...p, dependents: p.dependents.map(x => x.id === d.id ? {...x, birthDate: e.target.value} : x)}))} 
-                          />
-                        </td>
-                        <td className="px-6 py-3"><input className="w-full p-2 bg-transparent outline-none text-slate-900 dark:text-white" value={d.relationship} onChange={e => setCurrentMember(p => ({...p, dependents: p.dependents.map(x => x.id === d.id ? {...x, relationship: e.target.value} : x)}))} /></td>
-                        <td className="px-8 py-3 text-right"><button onClick={() => setCurrentMember(p => ({...p, dependents: p.dependents.filter(x => x.id !== d.id)}))} className="text-red-400 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={18} /></button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <Section title="Observações">
-              <TextArea className="lg:col-span-4" label="Anotações Gerais" name="observacao" value={currentMember.observacao} onChange={handleInputChange} placeholder="Histórico, pendências ou observações..." />
-            </Section>
-          </div>
-        )}
+      {/* VIEW PRINCIPAL (READ-ONLY) */}
+      <div className="mt-8 bg-slate-50/30 dark:bg-slate-900/30 p-2 rounded-[40px] border border-slate-100 dark:border-slate-800/50">
+        {renderMemberForm(currentMember, () => {}, true)}
       </div>
 
+      {/* FOOTER DE AÇÕES */}
       <footer className="fixed bottom-0 left-0 lg:left-[360px] right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 p-6 z-[100] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={handleNew} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-blue-600/20"><UserPlus size={18} /> Incluir</button>
-          <button onClick={handleSave} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-emerald-600/20"><Save size={18} /> Salvar</button>
-          <button onClick={() => setIsDocModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-slate-900/20"><FileSignature size={18} /> Gerar Documento</button>
+          <button onClick={handleOpenAdd} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-blue-600/20">
+            <UserPlus size={18} /> Incluir Novo
+          </button>
+          <button onClick={handleOpenEdit} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-emerald-600/20">
+            <Edit3 size={18} /> Editar Cadastro
+          </button>
+          <button onClick={() => setIsDocModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-slate-900/20">
+            <FileSignature size={18} /> Gerar Documento
+          </button>
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} title="Imprimir" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 p-4 rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"><Printer size={20} /></button>
-          <button onClick={() => { if(confirm('Excluir este sócio?')) deleteMember(currentIndex); }} title="Excluir" className="bg-red-50 dark:bg-red-900/20 text-red-500 p-4 rounded-2xl border border-red-100 dark:border-red-900 hover:bg-red-100 transition-all"><Trash2 size={20} /></button>
+          <button onClick={() => { if(confirm('Excluir este sócio permanentemente?')) deleteMember(currentIndex); }} title="Excluir" className="bg-red-50 dark:bg-red-900/20 text-red-500 p-4 rounded-2xl border border-red-100 dark:border-red-900 hover:bg-red-100 transition-all"><Trash2 size={20} /></button>
         </div>
       </footer>
     </div>

@@ -41,12 +41,10 @@ export interface DocumentTemplate {
 
 export interface Member {
   id: string;
-  tenantId: string; // Mantido para compatibilidade local
-  tenant_id?: string; // Adicionado para compatibilidade Supabase
-  updatedAt: string;
-  updated_at?: string;
+  tenant_id: string;
   isSynced: boolean;
   
+  // Identificação e Admin
   codigo_socio: string;
   data_admissao: string;
   codigo_antigo: string;
@@ -54,6 +52,8 @@ export interface Member {
   codigo_delegacia: string;
   codigo_comunidade: string;
   data_nascimento: string;
+  
+  // Pessoais
   nome: string;
   apelido: string;
   nome_pai: string;
@@ -63,6 +63,12 @@ export interface Member {
   nacionalidade: string;
   naturalidade: string;
   uf_naturalidade: string;
+  sexo: string;
+  alfabetizado: string;
+  escolaridade: string;
+  tipo_sanguineo: string;
+  
+  // Localização
   endereco: string;
   numero: string;
   bairro: string;
@@ -72,11 +78,18 @@ export interface Member {
   complemento: string;
   ponto_referencia: string;
   telefone: string;
+  email: string;
+  
+  // Profissional
   profissao: string;
   empregador: string;
   local_trabalho: string;
-  alfabetizado: string;
-  escolaridade: string;
+  inscricao_incra: string;
+  area_fazenda: string;
+  renda_familiar: string;
+  quantidade_membros_familia: string;
+  
+  // Documentos
   rg: string;
   orgao_expedidor_rg: string;
   data_expedicao_rg: string;
@@ -88,25 +101,27 @@ export interface Member {
   zona_eleitoral: string;
   secao_eleitoral: string;
   cir: string;
+  nit: string;
+  pis: string;
+  cei: string;
+  caepf: string;
+  sus: string;
+  numero_dap: string;
+  grupo_dap: string;
+  validade_dap: string;
+  outros_documentos: string;
+  
+  // Embarcação
   embarcacao: string;
   embarcacao_rgp: string;
   rgp_uf: string;
   ab: string;
   numero_tripulantes: string;
   cpf_proprietario: string;
-  quantidade_membros_familia: string;
-  renda_familiar: string;
-  inscricao_incra: string;
-  area_fazenda: string;
-  livro: string;
-  folha: string;
-  numero_termo: string;
-  nit: string;
-  pis: string;
-  cei: string;
-  caepf: string;
   numero_propriedade_receita_federal: string;
   data_emissao_rgp: string;
+  
+  // Situação
   codigo_categoria: string;
   situacao: string;
   ultimo_mes_pago: string;
@@ -114,31 +129,32 @@ export interface Member {
   especie: string;
   data_transferencia: string;
   data_falecimento: string;
-  observacao: string;
-  foto: string;
-  local_foto: string;
-  webcam: string;
-  sexo: string;
-  data_ultimo_pagamento: string;
-  primeira_data_pagamento: string;
-  ultimo_dia_pago: string;
   destino_transferencia: string;
-  data_ultimo_movimento: string;
-  pasta_socios: string;
-  pasta_embarcacao: string;
-  email: string;
   id_defeso: string;
-  numero_dap: string;
-  grupo_dap: string;
-  validade_dap: string;
   tem_defeso: string;
-  tipo_sanguineo: string;
-  sus: string;
-  outros_documentos: string;
+  
+  // MPA
   situacao_mpa: string;
   codigo_gps_mpa: string;
   senha_gps_mpa: string;
   senha_inss_mpa: string;
+  
+  // Datas de Pagamento
+  data_ultimo_pagamento: string;
+  primeira_data_pagamento: string;
+  ultimo_dia_pago: string;
+  data_ultimo_movimento: string;
+  
+  // Outros
+  livro: string;
+  folha: string;
+  numero_termo: string;
+  pasta_socios: string;
+  pasta_embarcacao: string;
+  foto: string;
+  local_foto: string;
+  webcam: string;
+  observacao: string;
   
   dependents: Dependent[];
   photoUrl?: string;

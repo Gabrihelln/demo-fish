@@ -9,7 +9,7 @@ import { DocumentosModelosView } from './views/DocumentosModelos';
 import { DocumentosListaView } from './views/DocumentosLista';
 import { RelatoriosView } from './views/Relatorios';
 import { LoginView } from './views/Login';
-import { AdminPanelView } from './views/AdminPanel';
+import { AdminPainelView } from './views/AdminPainel';
 import { DocsView } from './views/Docs';
 import { 
   Menu as MenuIcon, Wifi, WifiOff, RefreshCw, ShieldCheck, Loader2
@@ -75,10 +75,10 @@ const MainLayout: React.FC = () => {
   const renderActiveView = () => {
     if (session.user?.role === 'SUPER_ADMIN') {
       switch (activeView) {
-        case 'admin-panel': return <AdminPanelView />;
+        case 'admin-panel': return <AdminPainelView />;
         case 'relatorios': return <RelatoriosView />;
         case 'docs': return <DocsView />;
-        default: return <AdminPanelView />;
+        default: return <AdminPainelView />;
       }
     }
 

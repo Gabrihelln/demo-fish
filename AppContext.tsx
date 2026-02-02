@@ -19,7 +19,7 @@ interface AppContextType {
   tenants: Tenant[];
   session: AuthSession;
   isAppReady: boolean;
-  login: (username: string, pass: string, tenantList?: Tenant[]) => boolean;
+  login: (username: string, pass: string, tenantList?: Tenant[]) => Promise<boolean>;
   logout: () => void;
   addTenant: (name: string, username: string, pass: string) => Promise<void>;
   toggleTenantStatus: (id: string) => Promise<void>;
@@ -41,13 +41,31 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const STORAGE_TEMPLATES = 'sga_templates_v2';
-const STORAGE_TENANTS = 'sga_tenants_v1';
-const STORAGE_SESSION = 'sga_session';
-const STORAGE_CLOUD_URL = 'sga_cloud_url';
-const STORAGE_CLOUD_KEY = 'sga_cloud_key';
-const DB_NAME = 'SGA_DATABASE_V3';
+const DB_NAME = 'SGA_DATABASE_V4'; 
 const STORE_NAME = 'members';
+
+const DATE_FIELDS = [
+  'data_admissao', 'recadastro', 'data_nascimento', 'data_expedicao_rg', 
+  'data_expedicao_ctps', 'data_emissao_rgp', 'data_transferencia', 
+  'data_falecimento', 'data_ultimo_pagamento', 'primeira_data_pagamento', 
+  'ultimo_dia_pago', 'data_ultimo_movimento', 'validade_dap'
+];
+
+const SAFE_COLUMNS = [
+  'id', 'tenant_id', 'codigo_socio', 'data_admissao', 'codigo_antigo', 'recadastro', 'codigo_delegacia', 'codigo_comunidade', 
+  'data_nascimento', 'nome', 'apelido', 'nome_pai', 'nome_mae', 'estado_civil', 'conjuge', 'nacionalidade', 'naturalidade', 
+  'uf_naturalidade', 'sexo', 'alfabetizado', 'escolaridade', 'tipo_sanguineo', 'endereco', 'numero', 'bairro', 'cidade', 
+  'uf', 'cep', 'complemento', 'ponto_referencia', 'telefone', 'email', 'profissao', 'empregador', 'local_trabalho', 
+  'inscricao_incra', 'area_fazenda', 'renda_familiar', 'quantidade_membros_familia', 'rg', 'orgao_expedidor_rg', 
+  'data_expedicao_rg', 'cpf', 'ctps', 'serie_ctps', 'data_expedicao_ctps', 'titulo_eleitor', 'zona_eleitoral', 
+  'secao_eleitoral', 'cir', 'nit', 'pis', 'cei', 'caepf', 'sus', 'numero_dap', 'grupo_dap', 'validade_dap', 
+  'outros_documentos', 'embarcacao', 'embarcacao_rgp', 'rgp_uf', 'ab', 'numero_tripulantes', 'cpf_proprietario', 
+  'numero_propriedade_receita_federal', 'data_emissao_rgp', 'codigo_categoria', 'situacao', 'ultimo_mes_pago', 
+  'numero_beneficio', 'especie', 'data_transferencia', 'data_falecimento', 'destino_transferencia', 'id_defeso', 
+  'tem_defeso', 'situacao_mpa', 'codigo_gps_mpa', 'senha_gps_mpa', 'senha_inss_mpa', 'data_ultimo_pagamento', 
+  'primeira_data_pagamento', 'ultimo_dia_pago', 'data_ultimo_movimento', 'livro', 'folha', 'numero_termo', 
+  'pasta_socios', 'pasta_embarcacao', 'foto', 'local_foto', 'webcam', 'observacao'
+];
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -63,19 +81,42 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
+const normalizeToInputDate = (value: any): string => {
+  if (!value || value === "") return "";
+  try {
+    const str = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    let date: Date;
+    if (/^\d{2}[\/-]\d{2}[\/-]\d{4}/.test(str)) {
+      const parts = str.split(/[\/-]/);
+      date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    } else {
+      date = new Date(str);
+    }
+    if (isNaN(date.getTime())) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  } catch (e) { return ""; }
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [session, setSession] = useState<AuthSession>({ user: null });
+  const [session, setSession] = useState<AuthSession>(() => {
+    const saved = localStorage.getItem('sga_session');
+    return saved ? JSON.parse(saved) : { user: null };
+  });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isAppReady, setIsAppReady] = useState(false);
   const [cloudConnected, setCloudConnected] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('sga_last_sync'));
   
   const [cloudKeys, setCloudKeys] = useState({
-    url: localStorage.getItem(STORAGE_CLOUD_URL) || DEFAULT_SUPABASE_URL,
-    key: localStorage.getItem(STORAGE_CLOUD_KEY) || DEFAULT_SUPABASE_KEY
+    url: localStorage.getItem('sga_cloud_url') || DEFAULT_SUPABASE_URL,
+    key: localStorage.getItem('sga_cloud_key') || DEFAULT_SUPABASE_KEY
   });
 
   const supabase = useMemo(() => {
@@ -84,192 +125,184 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [cloudKeys.url, cloudKeys.key]);
 
   useEffect(() => {
+    const handleStatusChange = () => {
+      const online = navigator.onLine;
+      setIsOnline(online);
+      if (online && isAppReady && session.user) {
+        syncData();
+      }
+    };
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+    return () => {
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
+  }, [isAppReady, session.user]);
+
+  useEffect(() => {
     const boot = async () => {
       try {
         const db = await openDB();
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
         const request = store.getAll();
-        
         request.onsuccess = () => {
           const dbMembers = request.result || [];
-          const st = localStorage.getItem(STORAGE_TEMPLATES);
-          const sn = localStorage.getItem(STORAGE_TENANTS);
-          const ss = localStorage.getItem(STORAGE_SESSION);
-
+          const st = localStorage.getItem('sga_templates_v2');
+          const sn = localStorage.getItem('sga_tenants_v1');
           if (dbMembers.length > 0) setAllMembers(dbMembers);
           if (st) setTemplates(JSON.parse(st));
           if (sn) setTenants(JSON.parse(sn));
-          if (ss) setSession(JSON.parse(ss));
-          
           setIsAppReady(true);
         };
-      } catch (e) {
-        setIsAppReady(true);
-      }
+      } catch (e) { setIsAppReady(true); }
     };
     boot();
   }, []);
 
   useEffect(() => {
+    if (isAppReady && session.user && isOnline && supabase) {
+      syncData();
+    }
+  }, [session.user?.id, isAppReady]);
+
+  useEffect(() => {
     if (!isAppReady) return;
     const save = async () => {
-      const db = await openDB();
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      await store.clear();
-      allMembers.forEach(m => { if (m.id) store.put(m); });
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        await store.clear();
+        allMembers.forEach(m => { if (m.id) store.put(m); });
+      } catch (e) {}
     };
     save();
-    localStorage.setItem(STORAGE_TEMPLATES, JSON.stringify(templates));
-    localStorage.setItem(STORAGE_TENANTS, JSON.stringify(tenants));
-    localStorage.setItem(STORAGE_SESSION, JSON.stringify(session));
+    localStorage.setItem('sga_templates_v2', JSON.stringify(templates));
+    localStorage.setItem('sga_tenants_v1', JSON.stringify(tenants));
+    localStorage.setItem('sga_session', JSON.stringify(session));
   }, [allMembers, templates, tenants, session, isAppReady]);
+
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch (e) { return 'id-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36); }
+  };
 
   const sanitize = (m: any, forcedTenantId?: string): Member => {
     const member = { ...EMPTY_MEMBER };
-    const tid = m.tenant_id || m.tenantId || forcedTenantId || session.user?.tenantId || "";
-    
+    const tid = m.tenant_id || forcedTenantId || session.user?.tenantId || "";
     Object.keys(EMPTY_MEMBER).forEach(key => {
-      let val = m[key] !== undefined ? m[key] : "";
+      let val = m[key] !== undefined && m[key] !== null ? m[key] : "";
+      if (DATE_FIELDS.includes(key)) val = normalizeToInputDate(val);
       if (key === 'dependents') {
         let deps = val;
-        if (typeof deps === 'string' && deps !== "") {
-            try { deps = JSON.parse(deps); } catch(e) { deps = []; }
-        }
-        member.dependents = Array.isArray(deps) ? deps : [];
-      } else {
-        member[key] = (val === null || val === undefined) ? "" : String(val);
-      }
+        if (typeof deps === 'string' && deps !== "") { try { deps = JSON.parse(deps); } catch(e) { deps = []; } }
+        member.dependents = (Array.isArray(deps) ? deps : []).map((d: any) => ({ 
+          id: d.id || generateId(),
+          name: d.name || "",
+          birthDate: normalizeToInputDate(d.birthDate),
+          relationship: d.relationship || ""
+        }));
+      } else { member[key] = String(val); }
     });
-
-    if (!member.id) member.id = crypto.randomUUID();
-    member.tenantId = tid;
+    if (!member.id) member.id = generateId();
     member.tenant_id = tid;
-    member.isSynced = m.isSynced === true;
-    
     return member as Member;
   };
 
   const syncData = async (overrideMembers?: Member[]): Promise<SyncResult> => {
     if (!navigator.onLine || !supabase) return { success: false, count: 0, tenants };
     setCloudConnected(true);
-    
     try {
-      const { data: dbTenants, error: tError } = await supabase.from('tenants').select('*');
-      let freshTenants = tenants;
+      const { data: dbTenants, error: tError } = await supabase.from('tenants').select('*').order('name');
+      let freshTenants = [...tenants];
       if (dbTenants && !tError) {
-        freshTenants = dbTenants.map(t => ({
-          id: t.id, name: t.name, adminUsername: t.admin_username,
-          adminPassword: t.admin_password, isActive: t.is_active !== false,
-          createdAt: t.created_at, updatedAt: t.updated_at || t.created_at
-        }));
+        freshTenants = dbTenants.map(t => ({ id: t.id, name: t.name, adminUsername: t.admin_username, adminPassword: t.admin_password, isActive: t.is_active !== false, createdAt: t.created_at, updatedAt: t.updated_at || t.created_at }));
         setTenants(freshTenants);
       }
-
       if (!session.user) return { success: true, count: 0, tenants: freshTenants };
-
       const isSuperAdmin = session.user.role === 'SUPER_ADMIN';
       const currentTid = session.user.tenantId;
-
-      // Se overrideMembers for passado, usamos ele (útil para importação imediata)
-      // Caso contrário, usamos o estado allMembers
       const membersToSync = overrideMembers || allMembers;
-
-      // PUSH: Envia dados locais não sincronizados
-      const unsynced = membersToSync.filter(m => {
-        const syncStatus = !m.isSynced;
-        if (isSuperAdmin) return syncStatus;
-        return syncStatus && m.tenantId === currentTid;
-      });
-
+      
+      const unsynced = membersToSync.filter(m => !m.isSynced && (isSuperAdmin || m.tenant_id === currentTid));
       if (unsynced.length > 0) {
         const payload = unsynced.map(m => {
-          // EXCLUÍMOS 'dependents' e 'foto' do payload porque a coluna não existe no Supabase
-          const { isSynced, photoUrl, tenantId, updatedAt, dependents, foto, ...rest } = m;
           const cleaned: any = {};
-          
-          Object.entries(rest).forEach(([k, v]) => { 
-            cleaned[k] = v === "" ? null : v; 
-          });
-          
-          cleaned.tenant_id = m.tenant_id || m.tenantId || currentTid;
+          SAFE_COLUMNS.forEach(col => { if (col === 'tenant_id') cleaned[col] = m.tenant_id || currentTid; else cleaned[col] = (m as any)[col] || null; });
           return cleaned;
         });
-
-        const { error: upsertError } = await supabase.from('socios').upsert(payload, { onConflict: 'id' });
-        
-        if (upsertError) {
-          console.error("Erro no Upsert:", upsertError);
-          throw new Error(upsertError.message);
-        }
-
-        const syncedIds = unsynced.map(m => m.id);
-        setAllMembers(prev => prev.map(m => 
-          syncedIds.includes(m.id) ? { ...m, isSynced: true } : m
-        ));
+        await supabase.from('socios').upsert(payload);
       }
 
-      // PULL: Baixa dados atualizados
       let pullQuery = supabase.from('socios').select('*');
-      if (!isSuperAdmin && currentTid) {
-        pullQuery = pullQuery.eq('tenant_id', currentTid);
-      }
-
+      if (!isSuperAdmin && currentTid) pullQuery = pullQuery.eq('tenant_id', currentTid);
+      
       const { data: remote, error: pullError } = await pullQuery;
       if (!pullError && remote) {
-        const mappedRemote = remote.map(rm => sanitize(rm));
+        const mappedRemote = remote.map(rm => ({ ...sanitize(rm), isSynced: true }));
         setAllMembers(prev => {
-          const map = new Map(prev.map(p => [p.id, p]));
-          mappedRemote.forEach(r => { 
-            r.isSynced = true; 
-            map.set(r.id, r); 
+          const otherTenantsOrUnsynced = prev.filter(p => {
+            const isTargetScope = isSuperAdmin || p.tenant_id === currentTid;
+            return !isTargetScope || !p.isSynced;
           });
-          return Array.from(map.values());
+          return [...otherTenantsOrUnsynced, ...mappedRemote];
         });
       }
-
+      
       const now = new Date().toLocaleString('pt-BR');
       setLastSync(now);
       localStorage.setItem('sga_last_sync', now);
       return { success: true, count: unsynced.length, tenants: freshTenants };
-    } catch (e: any) {
-      console.error("Erro na Sincronização:", e.message);
-      return { success: false, count: 0, tenants };
-    } finally {
-      setCloudConnected(false);
-    }
+    } catch (e: any) { return { success: false, count: 0, tenants }; } finally { setCloudConnected(false); }
   };
 
-  const login = (username: string, pass: string, tenantList?: Tenant[]): boolean => {
-    const list = tenantList || tenants;
-    if (username === 'admin' && pass === 'admin') {
-      setSession({ user: { id: 'master', username: 'admin', role: 'SUPER_ADMIN' } });
-      return true;
+  const login = async (username: string, pass: string, tenantList?: Tenant[]): Promise<boolean> => {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('system_admins').select('*').eq('username', username).eq('password', pass).single();
+        if (data && !error) {
+          const masterSession: AuthSession = { user: { id: data.id, username: data.username, role: 'SUPER_ADMIN' } };
+          setSession(masterSession);
+          return true;
+        }
+      } catch (e) {}
     }
+    const list = tenantList || tenants;
     const t = list.find(x => x.adminUsername === username && x.adminPassword === pass);
     if (t && t.isActive) {
-      setSession({ user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } });
+      const userSession: AuthSession = { user: { id: t.id, username: t.adminUsername, role: 'REGION_USER', tenantId: t.id, cityName: t.name } };
+      setSession(userSession);
       return true;
     }
     return false;
   };
 
-  const currentMembers = useMemo(() => {
-    if (!session.user || !isAppReady) return [];
-    if (session.user.role === 'SUPER_ADMIN') return allMembers;
-    const tid = session.user.tenantId;
-    return allMembers.filter(m => m.tenantId === tid || m.tenant_id === tid);
-  }, [allMembers, session.user, isAppReady]);
-
   const value = {
-    members: currentMembers, templates, tenants, session, isAppReady, login,
-    logout: () => setSession({ user: null }),
+    members: useMemo(() => {
+      if (!session.user) return [];
+      if (session.user.role === 'SUPER_ADMIN') return allMembers;
+      return allMembers.filter(m => m.tenant_id === session.user?.tenantId);
+    }, [allMembers, session.user?.tenantId]),
+    templates, tenants, session, isAppReady, login,
+    logout: () => {
+      setSession({ user: null });
+      localStorage.removeItem('sga_session');
+    },
     addTenant: async (name: string, user: string, pass: string) => {
-      const id = crypto.randomUUID();
-      const payload = { id, name, admin_username: user, admin_password: pass, is_active: true, created_at: new Date().toISOString() };
-      if (supabase) await supabase.from('tenants').insert([payload]);
-      setTenants(prev => [...prev, { id, name, adminUsername: user, adminPassword: pass, isActive: true, createdAt: payload.created_at, updatedAt: payload.created_at }]);
+      const id = generateId();
+      const createdAt = new Date().toISOString();
+      const payload = { id, name, admin_username: user, admin_password: pass, is_active: true, created_at: createdAt };
+      if (supabase) {
+        const { data, error } = await supabase.from('tenants').insert([payload]).select();
+        if (error) throw new Error(error.message);
+        if (data && data[0]) {
+          const t = data[0];
+          setTenants(prev => [...prev, { id: t.id, name: t.name, adminUsername: t.admin_username, adminPassword: t.admin_password, isActive: t.is_active !== false, createdAt: t.created_at, updatedAt: t.updated_at || t.created_at }]);
+          return;
+        }
+      }
+      setTenants(prev => [...prev, { id, name, adminUsername: user, adminPassword: pass, isActive: true, createdAt, updatedAt: createdAt }]);
     },
     toggleTenantStatus: async (id: string) => {
       const t = tenants.find(x => x.id === id);
@@ -281,19 +314,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (supabase) await supabase.from('tenants').delete().eq('id', id);
       setTenants(prev => prev.filter(x => x.id !== id));
     },
-    addMember: (m: Member) => setAllMembers(prev => [...prev, sanitize(m)]),
-    updateMember: (index: number, m: Member) => {
-      const target = currentMembers[index];
-      if (target) setAllMembers(prev => prev.map(p => p.id === target.id ? sanitize(m) : p));
+    addMember: (m: Member) => {
+      const newM = { ...sanitize(m), isSynced: false };
+      const newList = [...allMembers, newM];
+      setAllMembers(newList);
+      if (navigator.onLine) syncData(newList);
     },
-    deleteMember: (index: number) => {
-      const target = currentMembers[index];
-      if (target) setAllMembers(prev => prev.filter(p => p.id !== target.id));
+    updateMember: (index: number, m: Member) => {
+      const filtered = allMembers.filter(x => x.tenant_id === session.user?.tenantId);
+      const target = filtered[index];
+      if (target) {
+        const updated = { ...sanitize(m), isSynced: false };
+        const newList = allMembers.map(p => p.id === target.id ? updated : p);
+        setAllMembers(newList);
+        if (navigator.onLine) syncData(newList);
+      }
+    },
+    deleteMember: async (index: number) => {
+      const filtered = allMembers.filter(x => x.tenant_id === session.user?.tenantId);
+      const target = filtered[index];
+      if (target) {
+        if (supabase && target.isSynced) {
+          try { await supabase.from('socios').delete().eq('id', target.id); } catch(e) {}
+        }
+        const newList = allMembers.filter(p => p.id !== target.id);
+        setAllMembers(newList);
+      }
     },
     addTemplate: (t: DocumentTemplate) => setTemplates(prev => [...prev, { ...t, tenantId: session.user?.tenantId || '' }]),
     deleteTemplate: (id: string) => setTemplates(prev => prev.filter(x => x.id !== id)),
     importMembers: (list: Member[]) => {
-      const sanitizedList = list.map(l => sanitize({...l, isSynced: false}));
+      const sanitizedList = list.map(l => ({ ...sanitize(l), isSynced: false }));
       setAllMembers(prev => {
         const map = new Map(prev.map(p => [p.id, p]));
         sanitizedList.forEach(s => map.set(s.id, s));
@@ -301,11 +352,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       return sanitizedList;
     },
-    clearDatabase: () => { setAllMembers([]); setTemplates([]); setTenants([]); },
+    clearDatabase: () => {
+      setAllMembers([]); setTemplates([]); setTenants([]);
+      localStorage.removeItem('sga_last_sync'); localStorage.removeItem('sga_session');
+      indexedDB.deleteDatabase(DB_NAME);
+      window.location.reload();
+    },
     isOnline, lastSync, syncData, cloudConnected, cloudKeys, 
-    updateCloudKeys: (url: string, key: string) => { setCloudKeys({ url, key }); localStorage.setItem(STORAGE_CLOUD_URL, url); localStorage.setItem(STORAGE_CLOUD_KEY, key); }
+    updateCloudKeys: (url: string, key: string) => { 
+      setCloudKeys({ url, key }); 
+      localStorage.setItem('sga_cloud_url', url); localStorage.setItem('sga_cloud_key', key); 
+    }
   };
-
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 

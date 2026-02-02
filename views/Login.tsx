@@ -16,18 +16,22 @@ export const LoginView: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Primeiro sincronizamos as unidades (tenants) para garantir que temos as senhas mais recentes
+      // 1. Sincroniza unidades (tenants) para validar credenciais regionais atualizadas
       const syncResult = await syncData();
       
-      // Tentamos o login com a lista fresca de tenants vinda do sync
-      const success = login(username, password, syncResult.tenants);
+      // 2. Tenta o login
+      const success = await login(username, password, syncResult.tenants);
       
       if (!success) {
         alert("Credenciais inválidas. Verifique seu usuário e senha.");
+      } else {
+        // 3. SUCESSO: Força uma sincronização dos dados daquela unidade específica IMEDIATAMENTE
+        await syncData();
       }
     } catch (err) {
-      // Fallback: Tenta login com o que já tem em cache local se o sync falhar
-      if (!login(username, password)) {
+      // Fallback local se o Supabase falhar
+      const success = await login(username, password);
+      if (!success) {
         alert("Falha no acesso. Verifique sua conexão ou credenciais.");
       }
     } finally {
@@ -38,7 +42,6 @@ export const LoginView: React.FC = () => {
   return (
     <div className="min-h-screen bg-blue-600 dark:bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 opacity-100 transition-all duration-700" />
-
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400 dark:bg-blue-600 rounded-full blur-[140px] opacity-40 animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-400 dark:bg-emerald-600 rounded-full blur-[140px] opacity-30 animate-pulse" />
@@ -61,14 +64,7 @@ export const LoginView: React.FC = () => {
                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
                   <User size={18} />
                 </div>
-                <input 
-                  type="text" 
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
-                  placeholder="Seu usuário"
-                  required
-                />
+                <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all" placeholder="Seu usuário" required />
               </div>
             </div>
 
@@ -78,30 +74,16 @@ export const LoginView: React.FC = () => {
                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-blue-600 transition-colors">
                   <Lock size={18} />
                 </div>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
-                  placeholder="••••••••"
-                  required
-                />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-3xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all" placeholder="••••••••" required />
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50"
-            >
+            <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50">
               {isLoading ? <RefreshCw className="animate-spin" size={16} /> : <><ChevronRight size={16} /> Entrar no Sistema</>}
             </button>
           </form>
         </div>
-
-        <p className="text-center text-white/40 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-8">
-         Desenvolvido por Orbio Tech &copy; 2026
-        </p>
+        <p className="text-center text-white/40 dark:text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-8">Desenvolvido por Orbio Tech &copy; 2026</p>
       </div>
     </div>
   );

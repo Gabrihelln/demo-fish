@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Globe, Trash2, Server, Key, Upload, RefreshCw, CheckCircle, X, ChevronDown
+  Plus, Globe, Trash2, Server, Key, Upload, RefreshCw, CheckCircle, X, ChevronDown, AlertTriangle, Database, Loader2
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { Member } from '../types';
@@ -105,18 +105,20 @@ const FIELD_MAP: Record<string, string[]> = {
 
 interface FeedbackState {
   isOpen: boolean;
-  type: 'migration' | 'sync';
+  type: 'migration' | 'sync' | 'reset' | 'create';
   count: number;
   success: boolean;
+  message?: string;
 }
 
-export const AdminPanelView: React.FC = () => {
+export const AdminPainelView: React.FC = () => {
   const { 
     tenants, addTenant, toggleTenantStatus, deleteTenant, 
-    importMembers, syncData, updateCloudKeys, cloudKeys, session
+    importMembers, syncData, updateCloudKeys, cloudKeys, session, clearDatabase
   } = useApp();
   
   const [isAddingTenant, setIsAddingTenant] = useState(false);
+  const [isSubmittingTenant, setIsSubmittingTenant] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '', username: '', password: '' });
   const [pendingData, setPendingData] = useState<any[] | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -159,18 +161,6 @@ export const AdminPanelView: React.FC = () => {
         }
       }
     });
-
-    keys.forEach(key => {
-      if (newMapping[key]) return;
-      const normalizedKey = normalize(key);
-      for (const [field, synonyms] of Object.entries(FIELD_MAP)) {
-        if (synonyms.some(syn => normalizedKey.includes(normalize(syn)))) {
-          newMapping[key] = field;
-          break;
-        }
-      }
-    });
-    
     setMapping(newMapping);
   };
 
@@ -213,11 +203,7 @@ export const AdminPanelView: React.FC = () => {
         return newItem as Member;
       });
 
-      // Importa localmente e captura a lista sanitizada
       const importedList = importMembers(converted);
-      
-      // Sincroniza imediatamente com a nuvem passando a lista recém-criada
-      // Isso ignora o delay do estado do React
       await syncData(importedList);
 
       setFeedback({ isOpen: true, type: 'migration', count: converted.length, success: true });
@@ -237,6 +223,44 @@ export const AdminPanelView: React.FC = () => {
     } finally { setIsSyncing(false); }
   };
 
+  const handleFullReset = async () => {
+    if (confirm("ATENÇÃO: Isso apagará TODOS os dados locais. Se o banco na nuvem também for limpo manualmente, você começará do zero. Deseja continuar?")) {
+      clearDatabase();
+      setFeedback({ isOpen: true, type: 'reset', count: 0, success: true });
+    }
+  };
+
+  const handleCreateTenant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingTenant) return;
+
+    setIsSubmittingTenant(true);
+    try {
+      await addTenant(tenantFormData.name, tenantFormData.username, tenantFormData.password);
+      
+      setFeedback({ 
+        isOpen: true, 
+        type: 'create', 
+        count: 0, 
+        success: true, 
+        message: `Unidade "${tenantFormData.name}" criada com sucesso.` 
+      });
+      
+      setIsAddingTenant(false);
+      setTenantFormData({ name: '', username: '', password: '' });
+    } catch (err: any) {
+      setFeedback({ 
+        isOpen: true, 
+        type: 'create', 
+        count: 0, 
+        success: false, 
+        message: err.message || "Erro desconhecido ao criar unidade." 
+      });
+    } finally {
+      setIsSubmittingTenant(false);
+    }
+  };
+
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       {/* FEEDBACK MODAL */}
@@ -247,11 +271,18 @@ export const AdminPanelView: React.FC = () => {
             <div className={`w-24 h-24 ${feedback.success ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'} rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner`}>
               {feedback.success ? <CheckCircle size={48} /> : <X size={48} />}
             </div>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">{feedback.type === 'migration' ? 'Migração Finalizada' : 'Nuvem Atualizada'}</h3>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">
+              {feedback.type === 'migration' ? 'Migração Finalizada' : 
+               feedback.type === 'sync' ? 'Nuvem Atualizada' : 
+               feedback.type === 'reset' ? 'Banco Resetado' : 'Unidade Criada'}
+            </h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-              {feedback.success ? (
-                <><span className="text-blue-600 font-black text-lg">{feedback.count}</span> registros processados e sincronizados com a nuvem.</>
-              ) : "Falha na comunicação. Verifique a conectividade com o Supabase."}
+              {feedback.message ? feedback.message : (
+                feedback.success ? (
+                  feedback.type === 'reset' ? "O banco de dados local foi limpo com sucesso. Pronto para nova configuração." :
+                  <><span className="text-blue-600 font-black text-lg">{feedback.count}</span> registros processados e sincronizados.</>
+                ) : "Falha na comunicação. Verifique a conectividade com o Supabase."
+              )}
             </p>
             <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-blue-600 transition-all">Fechar</button>
           </div>
@@ -264,6 +295,10 @@ export const AdminPanelView: React.FC = () => {
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Gestão de Unidades e Sincronização Mestre</p>
         </div>
         <div className="flex gap-4">
+           <button onClick={handleFullReset} className="bg-white dark:bg-slate-800 text-red-500 border border-red-100 dark:border-red-900/30 px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-red-50 transition-all shadow-sm">
+            <AlertTriangle size={18} />
+            Reset Total
+          </button>
           <button onClick={handleSyncNow} disabled={isSyncing} className="bg-slate-900 dark:bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-blue-600 transition-all disabled:opacity-50 shadow-xl shadow-slate-900/10">
             {isSyncing ? <RefreshCw size={18} className="animate-spin" /> : <Server size={18} />}
             {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
@@ -276,23 +311,27 @@ export const AdminPanelView: React.FC = () => {
           <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-3">
             <Globe size={18} className="text-blue-600" /> Unidades Ativas
           </h3>
-          <button onClick={() => setIsAddingTenant(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-transform shadow-lg shadow-blue-600/20">
-            Nova Unidade
+          <button 
+            onClick={() => setIsAddingTenant(!isAddingTenant)} 
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-transform shadow-lg shadow-blue-600/20"
+          >
+            {isAddingTenant ? 'Cancelar' : 'Nova Unidade'}
           </button>
         </div>
         
         {isAddingTenant && (
           <div className="p-8 bg-blue-50/10 dark:bg-blue-900/10 border-b border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-4 duration-300">
-            <form className="grid grid-cols-1 md:grid-cols-4 gap-4" onSubmit={async e => {
-              e.preventDefault();
-              await addTenant(tenantFormData.name, tenantFormData.username, tenantFormData.password);
-              setIsAddingTenant(false);
-              setTenantFormData({ name: '', username: '', password: '' });
-            }}>
-              <input type="text" placeholder="Nome Unidade" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.name} onChange={e => setTenantFormData({...tenantFormData, name: e.target.value})} required />
-              <input type="text" placeholder="Login" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.username} onChange={e => setTenantFormData({...tenantFormData, username: e.target.value})} required />
-              <input type="password" placeholder="Senha" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.password} onChange={e => setTenantFormData({...tenantFormData, password: e.target.value})} required />
-              <button type="submit" className="bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/10">Criar Unidade</button>
+            <form className="grid grid-cols-1 md:grid-cols-4 gap-4" onSubmit={handleCreateTenant}>
+              <input type="text" placeholder="Nome Unidade" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.name} onChange={e => setTenantFormData({...tenantFormData, name: e.target.value})} required disabled={isSubmittingTenant} />
+              <input type="text" placeholder="Login" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.username} onChange={e => setTenantFormData({...tenantFormData, username: e.target.value})} required disabled={isSubmittingTenant} />
+              <input type="password" placeholder="Senha" className="p-4 rounded-2xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 shadow-sm" value={tenantFormData.password} onChange={e => setTenantFormData({...tenantFormData, password: e.target.value})} required disabled={isSubmittingTenant} />
+              <button 
+                type="submit" 
+                disabled={isSubmittingTenant}
+                className="bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/10 flex items-center justify-center gap-2"
+              >
+                {isSubmittingTenant ? <Loader2 size={16} className="animate-spin" /> : 'Criar Unidade'}
+              </button>
             </form>
           </div>
         )}
@@ -319,6 +358,11 @@ export const AdminPanelView: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {tenants.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-8 py-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">Nenhuma unidade cadastrada.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
