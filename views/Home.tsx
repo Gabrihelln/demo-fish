@@ -1,13 +1,13 @@
 
 import React from 'react';
 import { 
-  Cloud, Users, Database, ShieldCheck, Globe, Clock, 
-  CheckCircle2, Loader2, Zap, AlertCircle
+  Layout as LayoutIcon, Cloud, Users, 
+  Database, ShieldCheck, Globe, Clock 
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 
 export const HomeView: React.FC = () => {
-  const { members, lastSync, isOnline, isOfflineReady, swFailed } = useApp();
+  const { members, lastSync, isOnline } = useApp();
 
   const stats = [
     { label: 'Associados', value: members.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -17,58 +17,6 @@ export const HomeView: React.FC = () => {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* CARD DE ERRO NO SERVICE WORKER (AMBAR) */}
-      {swFailed && isOnline && !isOfflineReady && (
-        <div className="bg-amber-500 text-white p-8 rounded-[40px] shadow-2xl shadow-amber-600/20 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md">
-              <AlertCircle size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black uppercase tracking-tighter">Modo Offline Limitado</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-100">O navegador bloqueou o registro offline neste ambiente. O sistema funcionará apenas com internet.</p>
-            </div>
-          </div>
-          <div className="bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
-             <span className="text-[10px] font-black uppercase tracking-widest">Web Only Mode</span>
-          </div>
-        </div>
-      )}
-
-      {/* CARD DE INSTALANDO (AZUL) */}
-      {!isOfflineReady && isOnline && !swFailed && (
-        <div className="bg-blue-600 text-white p-8 rounded-[40px] shadow-2xl shadow-blue-600/20 flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
-          <div className="flex items-center gap-6">
-            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md">
-              <Loader2 className="animate-spin" size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black uppercase tracking-tighter">Preparando Acesso Offline</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-100">Baixando arquivos essenciais para você usar o sistema sem internet...</p>
-            </div>
-          </div>
-          <div className="bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
-             <span className="text-[10px] font-black uppercase tracking-widest">Instalando...</span>
-          </div>
-        </div>
-      )}
-
-      {/* CARD DE PRONTO (VERDE) */}
-      {isOfflineReady && (
-        <div className="bg-emerald-500 text-white p-6 rounded-[32px] shadow-xl shadow-emerald-500/10 flex items-center gap-4 border border-emerald-400/30">
-          <div className="bg-white/20 p-2 rounded-xl">
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest leading-none">Sistema PWA Ativo</p>
-            <p className="text-xs font-bold uppercase tracking-tighter opacity-90 mt-1">Pronto para operar 100% offline em áreas remotas.</p>
-          </div>
-          <div className="ml-auto hidden md:block">
-            <Zap size={20} className="opacity-50" />
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group hover:-translate-y-1 transition-all">
@@ -94,7 +42,7 @@ export const HomeView: React.FC = () => {
             </h2>
             <p className="text-slate-400 text-sm font-medium max-w-sm mb-8">
               Este sistema foi projetado para funcionar perfeitamente em áreas com internet instável. 
-              Todos os seus dados são salvos localmente e sincronizados automaticamente.
+              Todos os seus dados são salvos localmente e sincronizados automaticamente quando houver conexão.
             </p>
             <div className="flex items-center gap-3 bg-white/5 border border-white/10 w-fit px-6 py-3 rounded-2xl">
               <ShieldCheck size={16} className="text-emerald-400" />
