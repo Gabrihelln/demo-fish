@@ -103,11 +103,13 @@ export const LoginView: React.FC = () => {
             </button>
           </form>
 
-          {/* <div className="mt-12 flex items-center justify-center gap-3 py-4 bg-slate-50 rounded-2xl border border-slate-100">
+          {/* 
+          <div className="mt-12 flex items-center justify-center gap-3 py-4 bg-slate-50 rounded-2xl border border-slate-100">
             <ShieldCheck size={14} className="text-emerald-500" />
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Conexão Segura e Criptografada</span>
           </div>
-        </div>/*/}
+        </div> 
+        */}
 
         <p className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-8">
           Desenvolvido por Orbio Tech &copy; 2026
