@@ -44,6 +44,24 @@ export interface Locality {
   isSynced: boolean;
 }
 
+export interface Mensalidade {
+  id: string;
+  tenant_id: string;
+  codigo_mensalidade: string;
+  data: string;
+  codigo_socio: string;
+  data_ultimo_mes_pago: string;
+  quantidade_meses: string;
+  data_ate_quando_pagar: string;
+  valor: string;
+  desconto_valor: string;
+  desconto_percentual: string;
+  valor_desconto_percentual: string;
+  valor_total: string;
+  observacao: string;
+  isSynced: boolean;
+}
+
 export interface DocumentTemplate {
   id: string;
   tenantId: string;

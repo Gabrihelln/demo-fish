@@ -7,8 +7,8 @@ import {
   UserCheck, Fish, ShieldAlert, Landmark, Tags, Receipt, Wallet, 
   CalendarDays, BookOpen, ShieldCheck as ShieldIcon,
   Moon, Sun,
-  // Added missing icons used in the menu structure
-  FileSignature, Files
+  FileSignature, Files,
+  Calculator
 } from 'lucide-react';
 import { useNavigation } from '../NavigationContext';
 import { useApp } from '../AppContext';
@@ -17,7 +17,7 @@ import { MenuItem } from '../types';
 export const Sidebar: React.FC = () => {
   const { activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode } = useNavigation();
   const { session, logout } = useApp();
-  const [expanded, setExpanded] = useState<string[]>(['cadastro', 'documentos', 'pendencias', 'recebimentos', 'financeiro']);
+  const [expanded, setExpanded] = useState<string[]>(['cadastro', 'documentos', 'pendencias', 'recebimentos', 'financeiro', 'contabil']);
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -43,6 +43,13 @@ export const Sidebar: React.FC = () => {
             { id: 'cadastro-pescado', label: 'Pescado', icon: Fish },
             { id: 'cadastro-localidade', label: 'Localidade', icon: MapPin },
             { id: 'cadastro-categorias', label: 'Categorias', icon: Tags },
+          ]
+        },
+        {
+          id: 'contabil',
+          label: 'Contábil',
+          icon: Calculator,
+          children: [
             { id: 'cadastro-contas', label: 'Contas e Subcontas', icon: Receipt },
           ]
         },

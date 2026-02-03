@@ -12,6 +12,7 @@ import { DocumentosListaView } from './views/DocumentosLista';
 import { RelatoriosView } from './views/Relatorios';
 import { LoginView } from './views/Login';
 import { AdminPainelView } from './views/AdminPainel';
+import { MensalidadesView } from './views/Mensalidades';
 import { DocsView } from './views/Docs';
 import { 
   Menu as MenuIcon, Wifi, WifiOff, RefreshCw, ShieldCheck, Loader2
@@ -89,6 +90,7 @@ const MainLayout: React.FC = () => {
       case 'cadastro-socios': return <SociosView />;
       case 'cadastro-categorias': return <CategoriasView />;
       case 'cadastro-localidade': return <LocalidadesView />;
+      case 'recebimentos-mensalidades': return <MensalidadesView />;
       case 'documentos-modelos': return <DocumentosModelosView />;
       case 'documentos-lista': return <DocumentosListaView />;
       case 'relatorios': return <RelatoriosView />;
