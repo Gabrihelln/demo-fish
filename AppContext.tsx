@@ -24,7 +24,7 @@ interface AppContextType {
   isAppReady: boolean;
   login: (username: string, pass: string, tenantList?: Tenant[]) => Promise<boolean>;
   logout: () => void;
-  addTenant: (name: string, username: string, pass: string) => Promise<void>;
+  addTenant: (name: string, username: string, pass: string) => Promise<string | undefined>;
   toggleTenantStatus: (id: string) => Promise<void>;
   deleteTenant: (id: string) => Promise<void>;
   addMember: (member: Member) => void;
@@ -38,8 +38,8 @@ interface AppContextType {
   addLocality: (locality: Omit<Locality, 'isSynced'>) => void;
   updateLocality: (id: string, locality: Omit<Locality, 'isSynced'>) => void;
   deleteLocality: (id: string) => Promise<void>;
-  importMembers: (newMembers: Member[]) => Member[];
-  importMensalidades: (newList: Mensalidade[]) => Mensalidade[];
+  importMembers: (newMembers: Member[]) => Promise<void>;
+  importMensalidades: (newList: Mensalidade[]) => Promise<void>;
   clearDatabase: () => void;
   isOnline: boolean;
   lastSync: string | null;
@@ -72,9 +72,12 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const cleanNumeric = (val: any) => {
-    const s = String(val || "0").replace(/[^\d,.-]/g, '').replace(',', '.');
-    return isNaN(parseFloat(s)) ? 0 : parseFloat(s);
+const cleanNumeric = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (!val || String(val).trim() === "") return 0;
+    const s = String(val).replace(/[^\d,.-]/g, '').replace(',', '.');
+    const parsed = parseFloat(s);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 const cleanDate = (val: any) => {
@@ -110,15 +113,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try { return createClient(cloudKeys.url, cloudKeys.key); } catch (e) { return null; }
   }, [cloudKeys.url, cloudKeys.key]);
 
-  useEffect(() => {
-    const handleStatusChange = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', handleStatusChange);
-    window.addEventListener('offline', handleStatusChange);
-    return () => {
-      window.removeEventListener('online', handleStatusChange);
-      window.removeEventListener('offline', handleStatusChange);
-    };
-  }, []);
+  const persistLocally = async (members?: Member[], categories?: Category[], localities?: Locality[], mensalidades?: Mensalidade[]) => {
+    try {
+      const db = await openDB();
+      const tx = db.transaction([STORE_MEMBERS, STORE_CATEGORIES, STORE_LOCALITIES, STORE_MENSALIDADES], 'readwrite');
+      if (members) {
+        const store = tx.objectStore(STORE_MEMBERS);
+        members.forEach(m => store.put(m));
+      }
+      if (categories) {
+        const store = tx.objectStore(STORE_CATEGORIES);
+        categories.forEach(c => store.put(c));
+      }
+      if (localities) {
+        const store = tx.objectStore(STORE_LOCALITIES);
+        localities.forEach(l => store.put(l));
+      }
+      if (mensalidades) {
+        const store = tx.objectStore(STORE_MENSALIDADES);
+        mensalidades.forEach(m => store.put(m));
+      }
+    } catch (e) { console.error("Erro na persistência local:", e); }
+  };
 
   useEffect(() => {
     const boot = async () => {
@@ -140,38 +156,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     boot();
   }, []);
 
-  // SINCRONIZAÇÃO AUTOMÁTICA AO LOGAR OU VOLTAR ONLINE
-  useEffect(() => {
-    if (isAppReady && session.user && isOnline) {
-      syncData();
-    }
-  }, [session.user, isOnline, isAppReady]);
-
-  useEffect(() => {
-    if (!isAppReady) return;
-    const save = async () => {
-      try {
-        const db = await openDB();
-        const tx = db.transaction([STORE_MEMBERS, STORE_CATEGORIES, STORE_LOCALITIES, STORE_MENSALIDADES], 'readwrite');
-        const stores = [
-          { name: STORE_MEMBERS, data: allMembers },
-          { name: STORE_CATEGORIES, data: allCategories },
-          { name: STORE_LOCALITIES, data: allLocalities },
-          { name: STORE_MENSALIDADES, data: allMensalidades }
-        ];
-        for (const s of stores) {
-          const store = tx.objectStore(s.name);
-          await store.clear();
-          (s.data || []).forEach(item => store.put(item));
-        }
-      } catch (e) {}
-    };
-    save();
-    localStorage.setItem('sga_templates_v2', JSON.stringify(templates || []));
-    localStorage.setItem('sga_tenants_v1', JSON.stringify(tenants || []));
-    localStorage.setItem('sga_session', JSON.stringify(session));
-  }, [allMembers, allCategories, allLocalities, allMensalidades, templates, tenants, session, isAppReady]);
-
   const syncData = async (overrideMembers?: Member[], overrideCategories?: Category[], overrideLocalities?: Locality[], overrideMensalidades?: Mensalidade[]): Promise<SyncResult> => {
     if (!navigator.onLine || !supabase) return { success: false, count: 0, tenants: tenants || [] };
     setCloudConnected(true);
@@ -186,75 +170,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const currentTid = session.user.tenantId;
       let totalSynced = 0;
 
-      // Sync Categorias
-      const catsToSync = overrideCategories || allCategories || [];
-      const unsyncedCats = catsToSync.filter(c => !c.isSynced && (isSuper || c.tenant_id === currentTid));
-      if (unsyncedCats.length > 0) {
-        const { error } = await supabase.from('categories').upsert(unsyncedCats.map(({isSynced, ...c}) => c));
-        if (!error) totalSynced += unsyncedCats.length;
+      // --- SINCRONIZAÇÃO DE SÓCIOS ---
+      const membersToSync = overrideMembers || allMembers || [];
+      const unsyncedMembers = membersToSync.filter(m => !m.isSynced && (isSuper || m.tenant_id === currentTid));
+      if (unsyncedMembers.length > 0) {
+        const sanitizedMembers = unsyncedMembers.map(({ isSynced, photoUrl, dependents, ...rest }) => rest);
+        const { error: mError } = await supabase.from('socios').upsert(sanitizedMembers);
+        if (!mError) {
+          totalSynced += unsyncedMembers.length;
+          setAllMembers(prev => {
+            const next = prev.map(m => unsyncedMembers.find(um => um.id === m.id) ? { ...m, isSynced: true } : m);
+            persistLocally(next);
+            return next;
+          });
+        } else { console.error("Erro Supabase Sócios:", mError); }
       }
 
-      // Sync Localidades
-      const locsToSync = overrideLocalities || allLocalities || [];
-      const unsyncedLocs = locsToSync.filter(l => !l.isSynced && (isSuper || l.tenant_id === currentTid));
-      if (unsyncedLocs.length > 0) {
-        const { error } = await supabase.from('localities').upsert(unsyncedLocs.map(({isSynced, ...l}) => l));
-        if (!error) totalSynced += unsyncedLocs.length;
-      }
-
-      // Sync Mensalidades
+      // --- SINCRONIZAÇÃO DE MENSALIDADES (SANITIZAÇÃO RIGOROSA) ---
       const payToSync = overrideMensalidades || allMensalidades || [];
       const unsyncedPay = payToSync.filter(p => !p.isSynced && (isSuper || p.tenant_id === currentTid));
       if (unsyncedPay.length > 0) {
-        const sanitizedPay = unsyncedPay.map(({isSynced, ...p}) => ({
+        const sanitizedPay = unsyncedPay.map(({ isSynced, ...p }) => ({
           ...p,
           data: cleanDate(p.data),
           data_ultimo_mes_pago: cleanDate(p.data_ultimo_mes_pago),
           data_ate_quando_pagar: cleanDate(p.data_ate_quando_pagar),
+          quantidade_meses: Math.max(1, Math.round(cleanNumeric(p.quantidade_meses))), // Garante inteiro para INTEGER
           valor: cleanNumeric(p.valor),
           desconto_valor: cleanNumeric(p.desconto_valor),
           desconto_percentual: cleanNumeric(p.desconto_percentual),
           valor_desconto_percentual: cleanNumeric(p.valor_desconto_percentual),
-          valor_total: cleanNumeric(p.valor_total),
-          quantidade_meses: isNaN(parseInt(p.quantidade_meses)) ? 1 : parseInt(p.quantidade_meses)
+          valor_total: cleanNumeric(p.valor_total)
         }));
+
         const { error: payError } = await supabase.from('mensalidades').upsert(sanitizedPay);
-        if (!payError) totalSynced += unsyncedPay.length;
+        
+        if (!payError) {
+           totalSynced += unsyncedPay.length;
+           setAllMensalidades(prev => {
+             const next = prev.map(p => unsyncedPay.find(up => up.id === p.id) ? { ...p, isSynced: true } : p);
+             persistLocally(undefined, undefined, undefined, next);
+             return next;
+           });
+        } else {
+           console.error("Erro Supabase Mensalidades:", payError);
+        }
       }
 
-      // Sync Sócios
-      const membersToSync = overrideMembers || allMembers || [];
-      const unsyncedMembers = membersToSync.filter(m => !m.isSynced && (isSuper || m.tenant_id === currentTid));
-      if (unsyncedMembers.length > 0) {
-        const { error: mError } = await supabase.from('socios').upsert(unsyncedMembers.map(({isSynced, photoUrl, ...m}) => m));
-        if (!mError) totalSynced += unsyncedMembers.length;
+      // --- CATEGORIAS ---
+      const catsToSync = overrideCategories || allCategories || [];
+      const unsyncedCats = catsToSync.filter(c => !c.isSynced && (isSuper || c.tenant_id === currentTid));
+      if (unsyncedCats.length > 0) {
+        const { error } = await supabase.from('categories').upsert(unsyncedCats.map(({isSynced, ...c}) => c));
+        if (!error) {
+           setAllCategories(prev => {
+             const next = prev.map(c => unsyncedCats.find(uc => uc.id === c.id) ? { ...c, isSynced: true } : c);
+             persistLocally(undefined, next);
+             return next;
+           });
+        }
       }
 
-      // Refresh Local Data from Cloud (Syncing is bidirectional)
-      if (!isSuper && currentTid) {
-        const { data: remotePay } = await supabase.from('mensalidades').select('*').eq('tenant_id', currentTid);
-        if (remotePay) setAllMensalidades(prev => {
-            const syncedIds = new Set(remotePay.map(r => r.id));
-            return [...prev.filter(p => !syncedIds.has(p.id) && p.tenant_id !== currentTid), ...remotePay.map(r => ({...r, isSynced: true}))];
-        });
-
-        const { data: remoteSocios } = await supabase.from('socios').select('*').eq('tenant_id', currentTid);
-        if (remoteSocios) setAllMembers(prev => {
-            const syncedIds = new Set(remoteSocios.map(r => r.id));
-            return [...prev.filter(m => !syncedIds.has(m.id) && m.tenant_id !== currentTid), ...remoteSocios.map(r => ({...r, isSynced: true}))];
-        });
-
-        const { data: remoteCats } = await supabase.from('categories').select('*').eq('tenant_id', currentTid);
-        if (remoteCats) setAllCategories(prev => {
-            const syncedIds = new Set(remoteCats.map(r => r.id));
-            return [...prev.filter(c => !syncedIds.has(c.id) && c.tenant_id !== currentTid), ...remoteCats.map(r => ({...r, isSynced: true}))];
-        });
-
-        const { data: remoteLocs } = await supabase.from('localities').select('*').eq('tenant_id', currentTid);
-        if (remoteLocs) setAllLocalities(prev => {
-            const syncedIds = new Set(remoteLocs.map(r => r.id));
-            return [...prev.filter(l => !syncedIds.has(l.id) && l.tenant_id !== currentTid), ...remoteLocs.map(r => ({...r, isSynced: true}))];
-        });
+      // --- LOCALIDADES ---
+      const locsToSync = overrideLocalities || allLocalities || [];
+      const unsyncedLocs = locsToSync.filter(l => !l.isSynced && (isSuper || l.tenant_id === currentTid));
+      if (unsyncedLocs.length > 0) {
+        const { error } = await supabase.from('localities').upsert(unsyncedLocs.map(({isSynced, ...l}) => l));
+        if (!error) {
+           setAllLocalities(prev => {
+             const next = prev.map(l => unsyncedLocs.find(ul => ul.id === l.id) ? { ...l, isSynced: true } : l);
+             persistLocally(undefined, undefined, next);
+             return next;
+           });
+        }
       }
 
       const now = new Date().toLocaleString('pt-BR');
@@ -262,7 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem('sga_last_sync', now);
       return { success: true, count: totalSynced, tenants: freshTenants };
     } catch (e: any) { 
-        console.error("Erro Crítico Sincronização:", e);
+        console.error("Falha na sincronização:", e);
         return { success: false, count: 0, tenants: tenants || [] }; 
     } finally { setCloudConnected(false); }
   };
@@ -304,15 +292,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const list = allMensalidades || [];
       return session.user.role === 'SUPER_ADMIN' ? list : list.filter(p => p.tenant_id === session.user?.tenantId);
     }, [allMensalidades, session.user]),
-    templates: templates || [],
-    tenants: tenants || [],
-    session, isAppReady, login,
+    templates, tenants, session, isAppReady, login,
     logout: () => { setSession({ user: null }); localStorage.removeItem('sga_session'); },
     addTenant: async (name: string, username: string, pass: string) => {
       if (!supabase) throw new Error("Cloud desconectada");
-      const { error } = await supabase.from('tenants').insert({ name, admin_username: username, admin_password: pass });
+      const { data, error } = await supabase.from('tenants').insert({ name, admin_username: username, admin_password: pass }).select('id').single();
       if (error) throw error;
-      syncData();
+      await syncData();
+      return data?.id;
     },
     toggleTenantStatus: async (id: string) => {
        if (!supabase) return;
@@ -326,47 +313,105 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        syncData();
     },
     addMember: (m: Member) => {
-      const next = [...(allMembers || []), { ...m, id: m.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' }];
-      setAllMembers(next); syncData(next);
+      const nextMember = { ...m, id: m.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' };
+      setAllMembers(prev => {
+        const next = [...prev, nextMember];
+        persistLocally(next);
+        syncData(next);
+        return next;
+      });
     },
     updateMember: (index: number, m: Member) => {
-      const next = [...(allMembers || [])]; next[index] = { ...m, isSynced: false };
-      setAllMembers(next); syncData(next);
+      setAllMembers(prev => {
+        const next = [...prev];
+        next[index] = { ...m, isSynced: false };
+        persistLocally(next);
+        syncData(next);
+        return next;
+      });
     },
-    deleteMember: async (index: number) => setAllMembers(prev => prev.filter((_, i) => i !== index)),
-    addTemplate: (t: DocumentTemplate) => setTemplates(prev => [...prev, { ...t, tenantId: session.user?.tenantId || '' }]),
-    deleteTemplate: (id: string) => setTemplates(prev => prev.filter(x => x.id !== id)),
+    deleteMember: async (index: number) => {
+        const memberToDelete = allMembers[index];
+        setAllMembers(prev => {
+            const next = prev.filter((_, i) => i !== index);
+            persistLocally(next);
+            return next;
+        });
+        if (supabase && memberToDelete.id) await supabase.from('socios').delete().eq('id', memberToDelete.id);
+    },
+    addTemplate: (t: DocumentTemplate) => {
+        const next = [...templates, { ...t, tenantId: session.user?.tenantId || '' }];
+        setTemplates(next);
+        localStorage.setItem('sga_templates_v2', JSON.stringify(next));
+    },
+    deleteTemplate: (id: string) => {
+        const next = templates.filter(x => x.id !== id);
+        setTemplates(next);
+        localStorage.setItem('sga_templates_v2', JSON.stringify(next));
+    },
     addCategory: (c: Omit<Category, 'isSynced'>) => {
-      const next = [...(allCategories || []), { ...c, id: c.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' }];
-      setAllCategories(next); syncData(undefined, next);
+      const nextCat = { ...c, id: c.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' };
+      setAllCategories(prev => {
+          const next = [...prev, nextCat];
+          persistLocally(undefined, next);
+          syncData(undefined, next);
+          return next;
+      });
     },
     updateCategory: (id: string, c: Omit<Category, 'isSynced'>) => {
-      const next = allCategories.map(x => x.id === id ? { ...c, id, isSynced: false, tenant_id: session.user?.tenantId || '' } : x);
-      setAllCategories(next); syncData(undefined, next);
+      setAllCategories(prev => {
+        const next = prev.map(x => x.id === id ? { ...c, id, isSynced: false, tenant_id: session.user?.tenantId || '' } : x);
+        persistLocally(undefined, next);
+        syncData(undefined, next);
+        return next;
+      });
     },
     deleteCategory: async (id: string) => {
-      setAllCategories(prev => prev.filter(x => x.id !== id));
+      setAllCategories(prev => {
+          const next = prev.filter(x => x.id !== id);
+          persistLocally(undefined, next);
+          return next;
+      });
       if (supabase && navigator.onLine) await supabase.from('categories').delete().eq('id', id);
     },
     addLocality: (l: Omit<Locality, 'isSynced'>) => {
-      const next = [...(allLocalities || []), { ...l, id: l.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' }];
-      setAllLocalities(next); syncData(undefined, undefined, next);
+      const nextLoc = { ...l, id: l.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' };
+      setAllLocalities(prev => {
+          const next = [...prev, nextLoc];
+          persistLocally(undefined, undefined, next);
+          syncData(undefined, undefined, next);
+          return next;
+      });
     },
     updateLocality: (id: string, l: Omit<Locality, 'isSynced'>) => {
-      const next = allLocalities.map(x => x.id === id ? { ...l, id, isSynced: false, tenant_id: session.user?.tenantId || '' } : x);
-      setAllLocalities(next); syncData(undefined, undefined, next);
+      setAllLocalities(prev => {
+        const next = prev.map(x => x.id === id ? { ...l, id, isSynced: false, tenant_id: session.user?.tenantId || '' } : x);
+        persistLocally(undefined, undefined, next);
+        syncData(undefined, undefined, next);
+        return next;
+      });
     },
     deleteLocality: async (id: string) => {
-      setAllLocalities(prev => prev.filter(x => x.id !== id));
+      setAllLocalities(prev => {
+          const next = prev.filter(x => x.id !== id);
+          persistLocally(undefined, undefined, next);
+          return next;
+      });
       if (supabase && navigator.onLine) await supabase.from('localities').delete().eq('id', id);
     },
-    importMembers: (list: Member[]) => {
-      const next = [...(allMembers || []), ...(list || []).map(m => ({ ...m, isSynced: false }))];
-      setAllMembers(next); return list;
+    importMembers: async (list: Member[]) => {
+      setAllMembers(prev => {
+        const next = [...prev, ...list.map(m => ({ ...m, isSynced: false }))];
+        persistLocally(next);
+        return next;
+      });
     },
-    importMensalidades: (list: Mensalidade[]) => {
-      const next = [...(allMensalidades || []), ...(list || []).map(p => ({ ...p, isSynced: false }))];
-      setAllMensalidades(next); return list;
+    importMensalidades: async (list: Mensalidade[]) => {
+      setAllMensalidades(prev => {
+        const next = [...prev, ...list.map(p => ({ ...p, isSynced: false }))];
+        persistLocally(undefined, undefined, undefined, next);
+        return next;
+      });
     },
     clearDatabase: () => {
       setAllMembers([]); setAllCategories([]); setAllLocalities([]); setAllMensalidades([]); setTemplates([]); setTenants([]);
