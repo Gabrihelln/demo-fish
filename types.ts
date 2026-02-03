@@ -62,6 +62,87 @@ export interface Mensalidade {
   isSynced: boolean;
 }
 
+export interface RequerimentoINSS {
+  id: string;
+  tenant_id: string;
+  codigo: string;
+  data: string;
+  insc_sindical: string;
+  nome: string;
+  cei: string;
+  data_nascimento: string;
+  nome_mae: string;
+  cpf: string;
+  rg: string;
+  pis: string;
+  nit: string;
+  endereco: string;
+  numero: string;
+  bairro_complemento: string;
+  municipio: string;
+  uf: string;
+  telefone: string;
+  cep: string;
+  situacao_mpa: string;
+  nr_rgp: string;
+  uf_rg: string;
+  ab: string;
+  nr_tripulantes: string;
+  cpf_proprietario: string;
+  nr_publicacao: string;
+  dt_publicacao: string;
+  area: string;
+  p1_inicio: string;
+  p1_fim: string;
+  p2_inicio: string;
+  p2_fim: string;
+  especies_proibidas: string;
+  isSynced: boolean;
+}
+
+export interface AutoDeclaracao {
+  id: string;
+  tenant_id: string;
+  data_auto_declaracao: string;
+  // Segurado
+  insc_sindical: string;
+  nome_segurado: string;
+  apelido: string;
+  data_nascimento: string;
+  local_nascimento: string;
+  logradouro: string;
+  numero: string;
+  uf: string;
+  bairro_distrito: string;
+  municipio: string;
+  rg: string;
+  data_expedicao_rg: string;
+  local_expedicao_rg: string;
+  cpf: string;
+  rgp: string;
+  cei_caepf: string;
+  // Tabelas e Listas
+  atividades_pesca: Array<{id: string, dt_inicio: string, dt_fim: string, local: string, situacao: string}>;
+  grupo_familiar_condicao: string;
+  grupo_familiar_membros: Array<{id: string, nome: string, dt_nascimento: string, cpf: string, estado_civil: string, parentesco: string}>;
+  condicoes_embarcacao: Array<{id: string, dt_inicio: string, dt_fim: string, condicao: string, ab: string}>;
+  arrendamentos: Array<{id: string, dt_inicio: string, dt_fim: string}>;
+  titulares_embarcacao: Array<{id: string, nome: string, cpf: string, dt_inicio: string, dt_fim: string}>;
+  atividades_pesqueiras_detalhe: Array<{id: string, atividade: string, subsistencia_venda: string, valor_anual: string}>;
+  ipi_recolhimento: string;
+  processos_industrializacao: Array<{id: string, dt_inicio: string, dt_fim: string}>;
+  possui_empregados: string;
+  lista_empregados: Array<{id: string, nome: string, cpf: string, dt_inicio: string, dt_fim: string}>;
+  outras_atividades: Array<{id: string, atividade: string, local: string, dt_inicio: string, dt_fim: string}>;
+  outras_rendas_atividades: string;
+  lista_outras_rendas: Array<{id: string, atividade: string, dt_inicio: string, dt_fim: string, renda: string, outras_infos: string}>;
+  participa_cooperativa: string;
+  cooperativa_entidade: string;
+  cooperativa_cnpj: string;
+  cooperativa_agropecuaria: string;
+  isSynced: boolean;
+}
+
 export interface DocumentTemplate {
   id: string;
   tenantId: string;
@@ -77,8 +158,6 @@ export interface Member {
   id: string;
   tenant_id: string;
   isSynced: boolean;
-  
-  // Identificação e Admin
   codigo_socio: string;
   data_admissao: string;
   codigo_antigo: string;
@@ -86,8 +165,6 @@ export interface Member {
   codigo_delegacia: string;
   codigo_comunidade: string;
   data_nascimento: string;
-  
-  // Pessoais
   nome: string;
   apelido: string;
   nome_pai: string;
@@ -101,8 +178,6 @@ export interface Member {
   alfabetizado: string;
   escolaridade: string;
   tipo_sanguineo: string;
-  
-  // Localização
   endereco: string;
   numero: string;
   bairro: string;
@@ -113,8 +188,6 @@ export interface Member {
   ponto_referencia: string;
   telefone: string;
   email: string;
-  
-  // Profissional
   profissao: string;
   empregador: string;
   local_trabalho: string;
@@ -122,8 +195,6 @@ export interface Member {
   area_fazenda: string;
   renda_familiar: string;
   quantidade_membros_familia: string;
-  
-  // Documentos
   rg: string;
   orgao_expedidor_rg: string;
   data_expedicao_rg: string;
@@ -144,8 +215,6 @@ export interface Member {
   grupo_dap: string;
   validade_dap: string;
   outros_documentos: string;
-  
-  // Embarcação
   embarcacao: string;
   embarcacao_rgp: string;
   rgp_uf: string;
@@ -154,8 +223,6 @@ export interface Member {
   cpf_proprietario: string;
   numero_propriedade_receita_federal: string;
   data_emissao_rgp: string;
-  
-  // Situação
   codigo_categoria: string;
   situacao: string;
   ultimo_mes_pago: string;
@@ -166,20 +233,14 @@ export interface Member {
   destino_transferencia: string;
   id_defeso: string;
   tem_defeso: string;
-  
-  // MPA
   situacao_mpa: string;
   codigo_gps_mpa: string;
   senha_gps_mpa: string;
   senha_inss_mpa: string;
-  
-  // Datas de Pagamento
   data_ultimo_pagamento: string;
   primeira_data_pagamento: string;
   ultimo_dia_pago: string;
   data_ultimo_movimento: string;
-  
-  // Outros
   livro: string;
   folha: string;
   numero_termo: string;
@@ -189,7 +250,6 @@ export interface Member {
   local_foto: string;
   webcam: string;
   observacao: string;
-  
   dependents: Dependent[];
   photoUrl?: string;
 }

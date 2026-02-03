@@ -1,13 +1,16 @@
 
 import React from 'react';
 import { 
-  Layout as LayoutIcon, Cloud, Users, 
-  Database, ShieldCheck, Globe, Clock 
+  Users, Database, Clock, PlusCircle, 
+  DollarSign, ClipboardList, FileSignature, 
+  BarChart2, MapPin, ChevronRight, Zap
 } from 'lucide-react';
 import { useApp } from '../AppContext';
+import { useNavigation } from '../NavigationContext';
 
 export const HomeView: React.FC = () => {
   const { members, lastSync, isOnline } = useApp();
+  const { setActiveView } = useNavigation();
 
   const stats = [
     { label: 'Associados', value: members.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -15,8 +18,18 @@ export const HomeView: React.FC = () => {
     { label: 'Última Sinc.', value: lastSync ? lastSync.split(',')[0] : 'N/A', icon: Clock, color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800' },
   ];
 
+  const quickActions = [
+    { id: 'cadastro-socios', label: 'Cadastrar Sócio', desc: 'Inclusão de novos associados', icon: PlusCircle, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { id: 'recebimentos-mensalidades', label: 'Lançar Mensalidade', desc: 'Controle de pagamentos', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { id: 'previdencias-requerimento', label: 'Requerimento INSS', desc: 'Novo processo previdenciário', icon: ClipboardList, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+    { id: 'previdencias-auto-declaracao', label: 'Auto Declaração', desc: 'Emissão de documentos legais', icon: FileSignature, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+    { id: 'relatorios', label: 'Gerar Relatórios', desc: 'Estatísticas e listagens', icon: BarChart2, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
+    { id: 'cadastro-localidade', label: 'Localidades', desc: 'Gestão de comunidades', icon: MapPin, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+  ];
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
+      {/* STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group hover:-translate-y-1 transition-all">
@@ -31,34 +44,36 @@ export const HomeView: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-slate-900 dark:bg-slate-800 p-12 rounded-[48px] text-white flex flex-col justify-between relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 p-12 opacity-10">
-            <Cloud size={160} />
-          </div>
-          <div className="relative z-10">
-            <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-4">
-              Arquitetura<br/><span className="text-blue-500">Local-First</span>
-            </h2>
-            <p className="text-slate-400 text-sm font-medium max-w-sm mb-8">
-              Este sistema foi projetado para funcionar perfeitamente em áreas com internet instável. 
-              Todos os seus dados são salvos localmente e sincronizados automaticamente quando houver conexão.
-            </p>
-            <div className="flex items-center gap-3 bg-white/5 border border-white/10 w-fit px-6 py-3 rounded-2xl">
-              <ShieldCheck size={16} className="text-emerald-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Dados Protegidos Localmente</span>
-            </div>
-          </div>
+      {/* QUICK ACTIONS SECTION */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 px-4">
+          <Zap className="text-blue-600" size={20} />
+          <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Ações Rápidas do Sistema</h3>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-[48px] shadow-sm flex flex-col justify-center items-center text-center">
-          <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-            <Globe size={40} className="text-slate-200 dark:text-slate-700" />
-          </div>
-          <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Pronto para Operar</h3>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 max-w-xs leading-relaxed">
-            Selecione uma opção no menu lateral para começar a gerenciar seus associados.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {quickActions.map((action) => (
+            <button 
+              key={action.id}
+              onClick={() => setActiveView(action.id)}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-xl hover:border-blue-100 dark:hover:border-blue-900 transition-all group flex flex-col text-left relative overflow-hidden"
+            >
+              <div className={`w-12 h-12 ${action.bg} ${action.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                <action.icon size={20} />
+              </div>
+              
+              <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
+                {action.label}
+              </h4>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                {action.desc}
+              </p>
+
+              <div className="absolute bottom-8 right-8 text-slate-200 dark:text-slate-800 group-hover:text-blue-500 group-hover:translate-x-2 transition-all">
+                <ChevronRight size={24} />
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

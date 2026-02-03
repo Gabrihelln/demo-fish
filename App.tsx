@@ -14,6 +14,8 @@ import { LoginView } from './views/Login';
 import { AdminPainelView } from './views/AdminPainel';
 import { MensalidadesView } from './views/Mensalidades';
 import { DocsView } from './views/Docs';
+import { RequerimentoINSSView } from './views/RequerimentoINSS';
+import { AutoDeclaracaoView } from './views/AutoDeclaracao';
 import { 
   Menu as MenuIcon, Wifi, WifiOff, RefreshCw, ShieldCheck, Loader2
 } from 'lucide-react';
@@ -91,6 +93,8 @@ const MainLayout: React.FC = () => {
       case 'cadastro-categorias': return <CategoriasView />;
       case 'cadastro-localidade': return <LocalidadesView />;
       case 'recebimentos-mensalidades': return <MensalidadesView />;
+      case 'previdencias-requerimento': return <RequerimentoINSSView />;
+      case 'previdencias-auto-declaracao': return <AutoDeclaracaoView />;
       case 'documentos-modelos': return <DocumentosModelosView />;
       case 'documentos-lista': return <DocumentosListaView />;
       case 'relatorios': return <RelatoriosView />;

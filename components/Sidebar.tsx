@@ -8,7 +8,7 @@ import {
   CalendarDays, BookOpen, ShieldCheck as ShieldIcon,
   Moon, Sun,
   FileSignature, Files,
-  Calculator
+  Calculator, ClipboardList
 } from 'lucide-react';
 import { useNavigation } from '../NavigationContext';
 import { useApp } from '../AppContext';
@@ -17,7 +17,7 @@ import { MenuItem } from '../types';
 export const Sidebar: React.FC = () => {
   const { activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode } = useNavigation();
   const { session, logout } = useApp();
-  const [expanded, setExpanded] = useState<string[]>(['cadastro', 'documentos', 'pendencias', 'recebimentos', 'financeiro', 'contabil']);
+  const [expanded, setExpanded] = useState<string[]>(['cadastro', 'documentos', 'previdencias', 'recebimentos', 'financeiro', 'contabil']);
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -64,12 +64,14 @@ export const Sidebar: React.FC = () => {
           ]
         },
         { 
-          id: 'pendencias', 
-          label: 'Pendências', 
+          id: 'previdencias', 
+          label: 'Previdências', 
           icon: AlertCircle,
           children: [
-            { id: 'pendencias-declaracao', label: 'Declaração', icon: FileSignature },
-            { id: 'pendencias-recurso', label: 'Recurso', icon: ShieldAlert },
+            { id: 'previdencias-requerimento', label: 'Requerimento ao INSS', icon: ClipboardList },
+            { id: 'previdencias-auto-declaracao', label: 'Auto Declaração', icon: FileSignature },
+            { id: 'previdencias-declaracao', label: 'Declaração', icon: FileText },
+            { id: 'previdencias-recurso', label: 'Recurso', icon: MessageSquare },
           ]
         },
         { 
