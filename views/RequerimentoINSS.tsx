@@ -97,8 +97,9 @@ export const RequerimentoINSSView: React.FC = () => {
       situacao_mpa: m.situacao_mpa || 'ATIVO',
       nr_rgp: m.embarcacao_rgp || '',
       uf_rg: m.rgp_uf || 'MA',
-      ab: m.ab || '',
-      nr_tripulantes: m.numero_tripulantes || '',
+      // Fix: Ensured m.ab and m.numero_tripulantes are converted to strings
+      ab: String(m.ab || ''),
+      nr_tripulantes: String(m.numero_tripulantes || ''),
       cpf_proprietario: m.cpf_proprietario || ''
     }));
     setMemberSearchTerm(m.nome);
@@ -233,7 +234,7 @@ export const RequerimentoINSSView: React.FC = () => {
 
                   <Section title="Dados do Requerente">
                     <div className="md:col-span-3 relative">
-                       <Input label="Nome Completo" name="nome" value={memberSearchTerm} onChange={e => {setMemberSearchTerm(e.target.value); setShowMemberSuggestions(true);}} placeholder="Pesquise o associado..." />
+                       <Input label="Nome Completo" name="nome" value={memberSearchTerm} onChange={e => {setMemberSearchTerm(e.target.value); setShowMemberSuggestions(true);}} placeholder="Pesquise the associado..." />
                        {showMemberSuggestions && memberSuggestions.length > 0 && (
                          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-[100] overflow-hidden">
                            {memberSuggestions.map((m) => (

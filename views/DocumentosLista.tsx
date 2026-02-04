@@ -1,37 +1,63 @@
 
 import React from 'react';
-import { Files, Trash2, Eye, Calendar, Tag, FileText, Search, Download, Printer } from 'lucide-react';
+import { Files, Trash2, Eye, Calendar, Tag, FileText, Search, Download, Printer, Edit3 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { useNavigation } from '../NavigationContext';
 import { DocumentTemplate } from '../types';
 
 export const DocumentosListaView: React.FC = () => {
   const { templates, deleteTemplate } = useApp();
-  const { setActiveView } = useNavigation();
+  const { setActiveView, setSelectedTemplateId } = useNavigation();
+
+  const handleEdit = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    setActiveView('documentos-modelos');
+  };
 
   const handleDownload = (template: DocumentTemplate) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const isThermal = template.printFormat === 'THERMAL';
+    
+    // Função helper para destacar as variáveis se estiverem no texto base
+    let contentHtml = template.content;
+    const variables = [
+      '{{nome}}', '{{inscricao}}', '{{cpf}}', '{{hoje}}', '{{dia_semana}}', 
+      '{{valor}}', '{{valor_extenso}}', '{{quantidade}}', '{{num_recibo}}'
+    ];
+    variables.forEach(v => {
+      contentHtml = contentHtml.split(v).join(`<b>${v}</b>`);
+    });
 
     const html = `
       <html>
         <head>
           <title>${template.name}</title>
           <style>
-            @page { size: A4; margin: 2cm; }
-            body { font-family: 'Serif', 'Times New Roman'; line-height: 1.6; color: #333; }
-            .header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #000; padding-bottom: 20px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-            .title { text-align: center; margin-bottom: 30px; font-weight: bold; text-decoration: underline; text-transform: uppercase; font-size: 14px; }
-            .content { text-align: justify; margin-bottom: 50px; white-space: pre-wrap; font-size: 12px; }
-            .footer { text-align: center; margin-top: auto; font-size: 11px; font-style: italic; }
-            .signature-line { margin-top: 40px; border-top: 1px solid #000; width: 300px; margin-left: auto; margin-right: auto; padding-top: 5px; }
+            @page { size: ${isThermal ? '80mm auto' : 'A4'}; margin: ${isThermal ? '2mm' : '2cm'}; }
+            body { 
+              font-family: ${isThermal ? '"Courier New", Courier, monospace' : '"Serif", "Times New Roman"'}; 
+              line-height: 1.3; 
+              color: #000; 
+              margin: 0;
+              padding: ${isThermal ? '5px' : '0'};
+              width: ${isThermal ? '74mm' : 'auto'};
+            }
+            .header { text-align: center; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; font-size: ${isThermal ? '9px' : '11px'}; border-bottom: ${isThermal ? '1px dashed #000' : '1px solid #000'}; padding-bottom: 10px; }
+            .title { text-align: center; margin: 15px 0; font-weight: bold; text-decoration: underline; text-transform: uppercase; font-size: ${isThermal ? '10px' : '14px'}; }
+            .content { text-align: justify; margin-bottom: 25px; white-space: pre-wrap; font-size: ${isThermal ? '9px' : '12px'}; }
+            .footer { text-align: center; margin-top: auto; font-size: ${isThermal ? '8px' : '11px'}; font-style: italic; }
+            .signature-line { margin-top: ${isThermal ? '30px' : '40px'}; border-top: 1px solid #000; width: ${isThermal ? '100%' : '300px'}; margin-left: auto; margin-right: auto; padding-top: 3px; font-size: 8px; font-weight: bold; }
+            b { font-weight: 900; }
           </style>
         </head>
         <body>
           <div class="header">${template.header.replace(/\n/g, '<br>')}</div>
           <div class="title">${template.name}</div>
-          <div class="content">${template.content}</div>
+          <div class="content">${contentHtml}</div>
           <div class="footer">${template.footer.replace(/\n/g, '<br>')}</div>
+          <div class="signature-line" style="text-align: center;">RECEBEDOR</div>
           <script>window.onload = () => { window.print(); window.close(); }</script>
         </body>
       </html>
@@ -94,15 +120,15 @@ export const DocumentosListaView: React.FC = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Calendar size={14} className="text-slate-300" />
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Modelo Base</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{template.updatedAt ? `Atu: ${new Date(template.updatedAt).toLocaleDateString()}` : 'Modelo Base'}</span>
               </div>
             </div>
 
             <button 
-              onClick={() => setActiveView('documentos-modelos')}
-              className="w-full mt-8 bg-slate-50 text-slate-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+              onClick={() => handleEdit(template.id)}
+              className="w-full mt-8 bg-slate-50 text-slate-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
             >
-              Editar Modelo
+              <Edit3 size={14} /> Editar Modelo
             </button>
           </div>
         ))}
@@ -112,7 +138,7 @@ export const DocumentosListaView: React.FC = () => {
             <Files size={64} className="mb-6 opacity-20" />
             <p className="text-sm font-black uppercase tracking-[0.2em] opacity-40">Nenhum documento cadastrado ainda</p>
             <button 
-              onClick={() => setActiveView('documentos-modelos')}
+              onClick={() => { setSelectedTemplateId(null); setActiveView('documentos-modelos'); }}
               className="mt-6 bg-blue-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-blue-600/20"
             >
               Criar Primeiro Modelo

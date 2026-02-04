@@ -1,6 +1,9 @@
 
 export type UserRole = 'SUPER_ADMIN' | 'REGION_USER';
 
+export type DocumentType = 'RECEIPT' | 'DECLARATION' | 'OTHER';
+export type PrintFormat = 'A4' | 'THERMAL' | 'A4_DUAL';
+
 export interface Tenant {
   id: string;
   name: string;
@@ -9,6 +12,117 @@ export interface Tenant {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  details?: TenantDetails;
+  representatives?: TenantRepresentatives;
+}
+
+export interface TenantDetails {
+  tenant_id: string;
+  nome_entidade: string;
+  nome_abreviado: string;
+  endereco: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  cep: string;
+  telefone_1: string;
+  telefone_2: string;
+  cnpj: string;
+  federacao: string;
+  confederacao: string;
+  polo: string;
+  modelo_carteira: string;
+  valor_mensalidade: string;
+  valor_filiacao: string;
+  quantidade_meses_pagar: string;
+  logotipo: string;
+  logotipo_endereco: string;
+  tipo_impressao: string;
+  impressora: string;
+  considerar_inativo_apos: string;
+  data_fundacao: string;
+  email: string;
+  banco: string;
+  agencia: string;
+  conta_corrente: string;
+  comarca: string;
+  profissao: string;
+  registro_federal: string;
+  data_filiado_nao_pode_votar: string;
+  quantidade_vias_declaracao: string;
+  ano: string;
+  
+  // Presidente
+  nome_presidente: string;
+  endereco_presidente: string;
+  bairro_presidente: string;
+  cidade_presidente: string;
+  uf_presidente: string;
+  rg_presidente: string;
+  cpf_presidente: string;
+  estado_civil_presidente: string;
+  profissao_presidente: string;
+  
+  // Mandato
+  inicio_mandato: string;
+  fim_mandato: string;
+  cartorio: string;
+  rc_posse_livro: string;
+  rc_posse_folha: string;
+  rc_posse_numero_termo: string;
+  data_ata: string;
+}
+
+export interface TenantRepresentatives {
+  tenant_id: string;
+  // Representante 02
+  nome_representante_02: string;
+  endereco_representante_02: string;
+  rg_representante_02: string;
+  cpf_representante_02: string;
+  estado_civil_representante_02: string;
+  bairro_representante_02: string;
+  cidade_representante_02: string;
+  uf_representante_02: string;
+  funcao_representante_02: string;
+  inicio_mandato_representante_02: string;
+  fim_mandato_representante_02: string;
+  cartorio_representante_02: string;
+  livro_representante_02: string;
+  folha_representante_02: string;
+  termo_representante_02: string;
+  // Representante 03
+  nome_representante_03: string;
+  endereco_representante_03: string;
+  rg_representante_03: string;
+  cpf_representante_03: string;
+  estado_civil_representante_03: string;
+  bairro_representante_03: string;
+  cidade_representante_03: string;
+  uf_representante_03: string;
+  funcao_representante_03: string;
+  inicio_mandato_representante_03: string;
+  fim_mandato_representante_03: string;
+  cartorio_representante_03: string;
+  livro_representante_03: string;
+  folha_representante_03: string;
+  termo_representante_03: string;
+  // Representante 04
+  nome_representante_04: string;
+  endereco_representante_04: string;
+  rg_representante_04: string;
+  cpf_representante_04: string;
+  estado_civil_representante_04: string;
+  bairro_representante_04: string;
+  cidade_representante_04: string;
+  uf_representante_04: string;
+  funcao_representante_04: string;
+  inicio_mandato_representante_04: string;
+  fim_mandato_representante_04: string;
+  cartorio_representante_04: string;
+  livro_representante_04: string;
+  folha_representante_04: string;
+  termo_representante_04: string;
 }
 
 export interface AuthSession {
@@ -19,6 +133,18 @@ export interface AuthSession {
     tenantId?: string;
     cityName?: string;
   } | null;
+}
+
+export interface GeneratedReceipt {
+  id: string;
+  tenant_id: string;
+  member_id: string;
+  template_id: string;
+  receipt_number: number;
+  template_name: string;
+  member_name: string;
+  content_snapshot: string;
+  created_at: string;
 }
 
 export interface Dependent {
@@ -62,14 +188,25 @@ export interface Mensalidade {
   isSynced: boolean;
 }
 
+export interface DocumentTemplate {
+  id: string;
+  tenantId: string;
+  name: string;
+  category: string;
+  header: string;
+  content: string;
+  footer: string;
+  type: DocumentType;
+  printFormat: PrintFormat;
+  updatedAt?: string;
+}
+
+// Interface para o formulário de Requerimento ao INSS
 export interface RequerimentoINSS {
   id: string;
-  tenant_id: string;
-  codigo: string;
   data: string;
-  insc_sindical: string;
+  codigo: string;
   nome: string;
-  cei: string;
   data_nascimento: string;
   nome_mae: string;
   cpf: string;
@@ -83,6 +220,7 @@ export interface RequerimentoINSS {
   uf: string;
   telefone: string;
   cep: string;
+  cei: string;
   situacao_mpa: string;
   nr_rgp: string;
   uf_rg: string;
@@ -97,14 +235,13 @@ export interface RequerimentoINSS {
   p2_inicio: string;
   p2_fim: string;
   especies_proibidas: string;
-  isSynced: boolean;
+  insc_sindical?: string;
 }
 
+// Interface para o formulário de Auto Declaração
 export interface AutoDeclaracao {
   id: string;
-  tenant_id: string;
   data_auto_declaracao: string;
-  // Segurado
   insc_sindical: string;
   nome_segurado: string;
   apelido: string;
@@ -121,37 +258,81 @@ export interface AutoDeclaracao {
   cpf: string;
   rgp: string;
   cei_caepf: string;
-  // Tabelas e Listas
-  atividades_pesca: Array<{id: string, dt_inicio: string, dt_fim: string, local: string, situacao: string}>;
+  atividades_pesca: {
+    id: string;
+    dt_inicio: string;
+    dt_fim: string;
+    local: string;
+    situacao: string;
+  }[];
   grupo_familiar_condicao: string;
-  grupo_familiar_membros: Array<{id: string, nome: string, dt_nascimento: string, cpf: string, estado_civil: string, parentesco: string}>;
-  condicoes_embarcacao: Array<{id: string, dt_inicio: string, dt_fim: string, condicao: string, ab: string}>;
-  arrendamentos: Array<{id: string, dt_inicio: string, dt_fim: string}>;
-  titulares_embarcacao: Array<{id: string, nome: string, cpf: string, dt_inicio: string, dt_fim: string}>;
-  atividades_pesqueiras_detalhe: Array<{id: string, atividade: string, subsistencia_venda: string, valor_anual: string}>;
+  grupo_familiar_membros: {
+    id: string;
+    nome: string;
+    dt_nascimento: string;
+    cpf: string;
+    estado_civil: string;
+    parentesco: string;
+  }[];
+  condicoes_embarcacao: {
+    id: string;
+    dt_inicio: string;
+    dt_fim: string;
+    condicao: string;
+    ab: string;
+  }[];
+  arrendamentos: {
+    id: string;
+    dt_inicio: string;
+    dt_fim: string;
+  }[];
+  titulares_embarcacao: {
+    id: string;
+    nome: string;
+    cpf: string;
+    dt_inicio: string;
+    dt_fim: string;
+  }[];
+  atividades_pesqueiras_detalhe: {
+    id: string;
+    atividade: string;
+    subsistencia_venda: string;
+    valor_anual: string;
+  }[];
+  processos_industrializacao: {
+    id: string;
+    dt_inicio: string;
+    dt_fim: string;
+  }[];
+  lista_empregados: {
+    id: string;
+    nome: string;
+    cpf: string;
+    dt_inicio: string;
+    dt_fim: string;
+  }[];
+  outras_atividades: {
+    id: string;
+    atividade: string;
+    local: string;
+    dt_inicio: string;
+    dt_fim: string;
+  }[];
+  lista_outras_rendas: {
+    id: string;
+    atividade: string;
+    dt_inicio: string;
+    dt_fim: string;
+    renda: string;
+    outras_infos: string;
+  }[];
   ipi_recolhimento: string;
-  processos_industrializacao: Array<{id: string, dt_inicio: string, dt_fim: string}>;
   possui_empregados: string;
-  lista_empregados: Array<{id: string, nome: string, cpf: string, dt_inicio: string, dt_fim: string}>;
-  outras_atividades: Array<{id: string, atividade: string, local: string, dt_inicio: string, dt_fim: string}>;
   outras_rendas_atividades: string;
-  lista_outras_rendas: Array<{id: string, atividade: string, dt_inicio: string, dt_fim: string, renda: string, outras_infos: string}>;
   participa_cooperativa: string;
-  cooperativa_entidade: string;
-  cooperativa_cnpj: string;
   cooperativa_agropecuaria: string;
-  isSynced: boolean;
-}
-
-export interface DocumentTemplate {
-  id: string;
-  tenantId: string;
-  name: string;
-  category: string;
-  header: string;
-  content: string;
-  footer: string;
-  updatedAt?: string;
+  cooperativa_entidade?: string;
+  cooperativa_cnpj?: string;
 }
 
 export interface Member {
@@ -218,8 +399,8 @@ export interface Member {
   embarcacao: string;
   embarcacao_rgp: string;
   rgp_uf: string;
-  ab: string;
-  numero_tripulantes: string;
+  ab: number | string;
+  numero_tripulantes: number | string;
   cpf_proprietario: string;
   numero_propriedade_receita_federal: string;
   data_emissao_rgp: string;

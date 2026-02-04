@@ -4,7 +4,7 @@ import {
   UserPlus, Save, Trash2, ChevronLeft, ChevronRight, 
   Upload, Printer, X, FileSignature, Table as TableIcon,
   FileText, Download, Search, User as UserIcon, Edit3, Eye,
-  ArrowLeft, FileDown
+  ArrowLeft, FileDown, Loader2
 } from 'lucide-react';
 import { Member, TabType, DocumentTemplate } from '../types';
 import { useApp } from '../AppContext';
@@ -18,7 +18,7 @@ import { Input, Select, TextArea } from '../components/FormField';
 import { Section } from '../components/Section';
 
 export const SociosView: React.FC = () => {
-  const { members, deleteMember, templates, session } = useApp();
+  const { members, deleteMember, templates, session, saveReceipt, getTenantDetails } = useApp();
   const { setMemberModalOpen, setMemberModalMode, setSelectedMemberId } = useNavigation();
   
   const [viewMode, setViewMode] = useState<'list' | 'details'>('list');
@@ -26,6 +26,7 @@ export const SociosView: React.FC = () => {
   const [currentMember, setCurrentMember] = useState<Member>(EMPTY_MEMBER);
   const [activeViewTab, setActiveViewTab] = useState<TabType>('frente');
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -145,14 +146,43 @@ export const SociosView: React.FC = () => {
     printWindow.document.close();
   };
 
-  const generateMemberDoc = (template: DocumentTemplate) => {
+  const generateMemberDoc = async (template: DocumentTemplate) => {
+    setIsGenerating(true);
+    
+    const receiptNum = await saveReceipt({
+      member_id: currentMember.id,
+      template_id: template.id,
+      template_name: template.name,
+      member_name: currentMember.nome,
+      content_snapshot: template.content
+    });
+
+    // Busca detalhes da unidade para pegar mensalidade e filiação configurados com os NOVOS NOMES DE CAMPO
+    let monthlyFee = '0,00';
+    let affiliationFee = '0,00';
+    if (session.user?.tenantId) {
+      try {
+        const details = await getTenantDetails(session.user.tenantId);
+        if (details) {
+          monthlyFee = details.valor_mensalidade || '0,00';
+          affiliationFee = details.valor_filiacao || '0,00';
+        }
+      } catch (e) { console.error("Erro ao buscar detalhes da unidade para o recibo", e); }
+    }
+
+    const now = new Date();
+    // Colocando os valores em negrito (HTML <b>) para que se destaquem no texto do recibo
     const replacements: Record<string, string> = {
-      '{{nome}}': currentMember.nome || '____________________',
-      '{{cpf}}': currentMember.cpf || '____________________',
-      '{{rg}}': currentMember.rg || '____________________',
-      '{{cidade}}': currentMember.cidade || '____________________',
-      '{{inscricao}}': currentMember.codigo_socio || '____________________',
-      '{{hoje}}': new Date().toLocaleDateString('pt-BR'),
+      '{{nome}}': `<b>${currentMember.nome || '____________________'}</b>`,
+      '{{cpf}}': `<b>${currentMember.cpf || '____________________'}</b>`,
+      '{{rg}}': `<b>${currentMember.rg || '____________________'}</b>`,
+      '{{cidade}}': `<b>${currentMember.cidade || '____________________'}</b>`,
+      '{{inscricao}}': `<b>${currentMember.codigo_socio || '____________________'}</b>`,
+      '{{hoje}}': `<b>${now.toLocaleDateString('pt-BR')}</b>`,
+      '{{dia_semana}}': `<b>${now.toLocaleDateString('pt-BR', { weekday: 'long' })}</b>`,
+      '{{num_recibo}}': `<b>${receiptNum ? String(receiptNum).padStart(6, '0') : '______'}</b>`,
+      '{{vlr_mensalidade}}': `<b>R$ ${monthlyFee}</b>`,
+      '{{vlr_filiacao}}': `<b>R$ ${affiliationFee}</b>`
     };
 
     let filledContent = template.content;
@@ -166,40 +196,59 @@ export const SociosView: React.FC = () => {
     });
 
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      setIsGenerating(false);
+      return;
+    }
+
+    const isThermal = template.printFormat === 'THERMAL';
 
     const html = `
       <html>
         <head>
           <title>${template.name} - ${currentMember.nome}</title>
           <style>
-            @page { size: A4; margin: 2cm; }
-            body { font-family: 'Serif', 'Times New Roman'; line-height: 1.6; color: #333; }
-            .header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #000; padding-bottom: 20px; font-weight: bold; text-transform: uppercase; font-size: 11px; }
-            .title { text-align: center; margin-bottom: 30px; font-weight: bold; text-decoration: underline; text-transform: uppercase; font-size: 14px; }
-            .content { text-align: justify; margin-bottom: 50px; white-space: pre-wrap; font-size: 12px; }
-            .footer { text-align: center; margin-top: auto; font-size: 11px; font-style: italic; }
-            .signature { margin-top: 60px; text-align: center; }
-            .signature-line { border-top: 1px solid #000; width: 300px; margin: 0 auto 5px auto; }
+            @page { 
+              /* Se for térmico, deixamos a altura como auto para o driver da impressora cortar no fim */
+              size: ${isThermal ? '80mm auto' : 'A4'}; 
+              margin: ${isThermal ? '2mm' : '2cm'}; 
+            }
+            body { 
+              font-family: ${isThermal ? '"Courier New", Courier, monospace' : '"Serif", "Times New Roman"'}; 
+              line-height: 1.3; 
+              color: #000; 
+              margin: 0;
+              padding: ${isThermal ? '5px' : '0'};
+              width: ${isThermal ? '74mm' : 'auto'};
+            }
+            .header { text-align: center; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; font-size: ${isThermal ? '9px' : '11px'}; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .title { text-align: center; margin-bottom: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; font-size: ${isThermal ? '10px' : '14px'}; }
+            .content { text-align: justify; margin-bottom: 20px; white-space: pre-wrap; font-size: ${isThermal ? '9px' : '12px'}; }
+            .footer { text-align: center; margin-top: 10px; font-size: ${isThermal ? '8px' : '11px'}; font-style: italic; }
+            .signature { margin-top: ${isThermal ? '20px' : '60px'}; text-align: center; }
+            .signature-line { border-top: 1px solid #000; width: ${isThermal ? '100%' : '300px'}; margin: 0 auto 3px auto; }
+            b { font-weight: 900; }
           </style>
         </head>
         <body>
           <div class="header">${filledHeader.replace(/\n/g, '<br>')}</div>
-          <div class="title">${template.name}</div>
+          <div class="divider"></div>
+          <div class="title">${template.name} Nº ${replacements['{{num_recibo}}']}</div>
           <div class="content">${filledContent}</div>
           <div class="footer">${filledFooter.replace(/\n/g, '<br>')}</div>
           <div class="signature">
             <div class="signature-line"></div>
-            <div style="font-size: 10px; font-weight: bold;">${currentMember.nome}</div>
-            <div style="font-size: 9px;">Associado(a)</div>
+            <div style="font-size: 9px; font-weight: bold;">RECEBEDOR</div>
           </div>
-          <script>window.onload = () => { window.print(); window.close(); }</script>
+          <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
         </body>
       </html>
     `;
     printWindow.document.write(html);
     printWindow.document.close();
     setIsDocModalOpen(false);
+    setIsGenerating(false);
   };
 
   const renderMemberView = (data: Member) => {
@@ -293,8 +342,9 @@ export const SociosView: React.FC = () => {
               <Input className="lg:col-span-2" label="Embarcação" name="embarcacao" value={data.embarcacao} onChange={()=>{}} />
               <Input label="Nº RGP" name="embarcacao_rgp_nr" value={data.embarcacao_rgp} onChange={()=>{}} className={readOnlyClass} />
               <Select label="UF" name="rgp_uf" options={UF_OPTIONS} value={data.rgp_uf} onChange={()=>{}} className={readOnlyClass} />
-              <Input label="AB" name="ab" value={data.ab} onChange={()=>{}} className={readOnlyClass} />
-              <Input label="Nº de Tripulantes" name="numero_tripulantes" value={data.numero_tripulantes} onChange={()=>{}} className={readOnlyClass} />
+              {/* Fix: Converted ab and numero_tripulantes to strings to match Input component value prop type */}
+              <Input label="AB" name="ab" value={String(data.ab || '')} onChange={()=>{}} className={readOnlyClass} />
+              <Input label="Nº de Tripulantes" name="numero_tripulantes" value={String(data.numero_tripulantes || '')} onChange={()=>{}} className={readOnlyClass} />
               <Input label="CPF do Proprietário" name="cpf_proprietario" value={data.cpf_proprietario} onChange={()=>{}} className={readOnlyClass} />
             </Section>
 
@@ -370,25 +420,34 @@ export const SociosView: React.FC = () => {
               </button>
             </div>
             <div className="p-8 max-h-[60vh] overflow-y-auto space-y-3">
-              {(templates || []).length > 0 ? templates.map(t => (
-                <button 
-                  key={t.id}
-                  onClick={() => generateMemberDoc(t)}
-                  className="w-full flex items-center justify-between p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-blue-600 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 group-hover:border-blue-200 group-hover:text-blue-600 transition-colors">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{t.name}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.category || 'Secretaria'}</p>
-                    </div>
-                  </div>
-                  <Download size={18} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
-                </button>
-              )) : (
-                <div className="py-12 text-center text-slate-300">Nenhum modelo disponível.</div>
+              {isGenerating ? (
+                 <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+                    <Loader2 size={40} className="animate-spin text-blue-600 mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Salvando Recibo e Gerando Numeração...</p>
+                 </div>
+              ) : (
+                <>
+                  {(templates || []).length > 0 ? templates.map(t => (
+                    <button 
+                      key={t.id}
+                      onClick={() => generateMemberDoc(t)}
+                      className="w-full flex items-center justify-between p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-blue-600 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 group-hover:border-blue-200 group-hover:text-blue-600 transition-colors">
+                          <FileText size={20} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{t.name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.category || 'Secretaria'}</p>
+                        </div>
+                      </div>
+                      <Download size={18} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
+                    </button>
+                  )) : (
+                    <div className="py-12 text-center text-slate-300">Nenhum modelo disponível.</div>
+                  )}
+                </>
               )}
             </div>
             <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end">
@@ -398,7 +457,6 @@ export const SociosView: React.FC = () => {
         </div>
       )}
 
-      {/* HEADER DE PESQUISA E NAVEGAÇÃO */}
       {viewMode === 'list' ? (
         <div className="space-y-8 animate-in fade-in duration-500">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-white dark:bg-slate-900 p-4 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm relative z-[60]">
@@ -549,12 +607,10 @@ export const SociosView: React.FC = () => {
             </div>
           </div>
 
-          {/* VIEW PRINCIPAL (READ-ONLY) */}
           <div className="mt-8 bg-slate-50/30 dark:bg-slate-900/30 p-2 rounded-[40px] border border-slate-100 dark:border-slate-800/50">
             {renderMemberView(currentMember)}
           </div>
 
-          {/* FOOTER DE AÇÕES */}
           <footer className="fixed bottom-0 left-0 lg:left-[360px] right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 p-6 z-[100] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex gap-3 w-full md:w-auto">
               <button onClick={handleOpenEdit} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all shadow-lg shadow-blue-600/20">

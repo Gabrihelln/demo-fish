@@ -159,8 +159,9 @@ export const MemberModal: React.FC = () => {
               <Input className="lg:col-span-2" label="Embarcação" name="embarcacao" value={data.embarcacao} onChange={onChange} />
               <Input label="Nº RGP" name="embarcacao_rgp_nr" value={data.embarcacao_rgp} onChange={onChange} />
               <Select label="UF" name="rgp_uf" options={UF_OPTIONS} value={data.rgp_uf} onChange={onChange} />
-              <Input label="AB" name="ab" value={data.ab} onChange={onChange} />
-              <Input label="Nº de Tripulantes" name="numero_tripulantes" value={data.numero_tripulantes} onChange={onChange} />
+              {/* Fix: Converted ab and numero_tripulantes to strings to match Input component value prop type */}
+              <Input label="AB" name="ab" value={String(data.ab || '')} onChange={onChange} />
+              <Input label="Nº de Tripulantes" name="numero_tripulantes" value={String(data.numero_tripulantes || '')} onChange={onChange} />
               <Input label="CPF do Proprietário" name="cpf_proprietario" value={data.cpf_proprietario} onChange={onChange} />
             </Section>
 

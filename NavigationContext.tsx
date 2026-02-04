@@ -18,6 +18,9 @@ interface NavigationContextType {
   // Estados do Modal de Mensalidade
   isMensalidadeModalOpen: boolean;
   setMensalidadeModalOpen: (open: boolean) => void;
+  // Estado para Edição de Documentos
+  selectedTemplateId: string | null;
+  setSelectedTemplateId: (id: string | null) => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
@@ -28,8 +31,8 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [memberModalMode, setMemberModalMode] = useState<'add' | 'edit'>('add');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  
   const [isMensalidadeModalOpen, setMensalidadeModalOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('sga_theme');
@@ -56,7 +59,8 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
       activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode,
       isMemberModalOpen, setMemberModalOpen, memberModalMode, setMemberModalMode,
       selectedMemberId, setSelectedMemberId,
-      isMensalidadeModalOpen, setMensalidadeModalOpen
+      isMensalidadeModalOpen, setMensalidadeModalOpen,
+      selectedTemplateId, setSelectedTemplateId
     }}>
       {children}
     </NavigationContext.Provider>
