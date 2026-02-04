@@ -34,26 +34,6 @@ export const Sidebar: React.FC = () => {
         { id: 'home', label: 'Painel Inicial', icon: Settings },
         { id: 'cadastro-socios', label: 'Sócios', icon: UserPlus },
         {
-          id: 'cadastro',
-          label: 'Auxiliares',
-          icon: Users,
-          children: [
-            { id: 'cadastro-assunto', label: 'Assunto do Atendimento', icon: MessageSquare },
-            { id: 'cadastro-atendente', label: 'Usuário Atendente', icon: UserCheck },
-            { id: 'cadastro-pescado', label: 'Pescado', icon: Fish },
-            { id: 'cadastro-localidade', label: 'Localidade', icon: MapPin },
-            { id: 'cadastro-categorias', label: 'Categorias', icon: Tags },
-          ]
-        },
-        {
-          id: 'contabil',
-          label: 'Contábil',
-          icon: Calculator,
-          children: [
-            { id: 'cadastro-contas', label: 'Contas e Subcontas', icon: Receipt },
-          ]
-        },
-        {
           id: 'recebimentos',
           label: 'Recebimentos',
           icon: Wallet,
@@ -72,6 +52,26 @@ export const Sidebar: React.FC = () => {
             { id: 'previdencias-auto-declaracao', label: 'Auto Declaração', icon: FileSignature },
             { id: 'previdencias-declaracao', label: 'Declaração', icon: FileText },
             { id: 'previdencias-recurso', label: 'Recurso', icon: MessageSquare },
+          ]
+        },
+        {
+          id: 'cadastro',
+          label: 'Auxiliares',
+          icon: Users,
+          children: [
+            { id: 'cadastro-assunto', label: 'Assunto do Atendimento', icon: MessageSquare },
+            { id: 'cadastro-atendente', label: 'Usuário Atendente', icon: UserCheck },
+            { id: 'cadastro-pescado', label: 'Pescado', icon: Fish },
+            { id: 'cadastro-localidade', label: 'Localidade', icon: MapPin },
+            { id: 'cadastro-categorias', label: 'Categorias', icon: Tags },
+          ]
+        },
+        {
+          id: 'contabil',
+          label: 'Contábil',
+          icon: Calculator,
+          children: [
+            { id: 'cadastro-contas', label: 'Contas e Subcontas', icon: Receipt },
           ]
         },
         { 
