@@ -3,6 +3,8 @@ import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './AppContext';
 import { NavigationProvider, useNavigation } from './NavigationContext';
 import { Sidebar } from './components/Sidebar';
+import { MemberModal } from './components/MemberModal';
+import { MensalidadeModal } from './components/MensalidadeModal';
 import { HomeView } from './views/Home';
 import { SociosView } from './views/Socios';
 import { CategoriasView } from './views/Categorias';
@@ -105,6 +107,8 @@ const MainLayout: React.FC = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 font-inter text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
+      <MemberModal />
+      <MensalidadeModal />
       <main className="flex-1 flex flex-col min-h-screen lg:ml-[360px] transition-all">
         <header className="h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 lg:px-12 sticky top-0 z-[50]">
           <div className="flex items-center gap-4">
@@ -114,7 +118,7 @@ const MainLayout: React.FC = () => {
             <div className="flex flex-col">
               <h2 className="text-[11px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-[0.2em] flex items-center gap-3">
                 <span className="w-2 h-2 rounded-full bg-blue-600" />
-                SGA - {session.user.role === 'SUPER_ADMIN' ? 'PAINEL MASTER' : 'GESTÃO DE ASSOCIADOS'}
+                SGA - {session.user.role === 'SUPER_ADMIN' ? 'PAINEL MASTER' : 'PAINEL DE GESTÃO'}
               </h2>
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-5">
                 {session.user.role === 'SUPER_ADMIN' ? 'Controle de Plataforma' : session.user.cityName}

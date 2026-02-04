@@ -10,7 +10,7 @@ import { useNavigation } from '../NavigationContext';
 
 export const HomeView: React.FC = () => {
   const { members, lastSync, isOnline } = useApp();
-  const { setActiveView } = useNavigation();
+  const { setActiveView, setMemberModalOpen, setMemberModalMode, setMensalidadeModalOpen } = useNavigation();
 
   const stats = [
     { label: 'Associados', value: members.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -19,13 +19,26 @@ export const HomeView: React.FC = () => {
   ];
 
   const quickActions = [
-    { id: 'cadastro-socios', label: 'Cadastrar Sócio', desc: 'Inclusão de novos associados', icon: PlusCircle, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { id: 'recebimentos-mensalidades', label: 'Lançar Mensalidade', desc: 'Controle de pagamentos', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { id: 'cadastro-socios', label: 'Cadastrar Sócio', desc: 'Inclusão de novos associados', icon: PlusCircle, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', isModalAction: true },
+    { id: 'recebimentos-mensalidades', label: 'Lançar Mensalidade', desc: 'Controle de pagamentos', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', isModalAction: true },
     { id: 'previdencias-requerimento', label: 'Requerimento INSS', desc: 'Novo processo previdenciário', icon: ClipboardList, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
     { id: 'previdencias-auto-declaracao', label: 'Auto Declaração', desc: 'Emissão de documentos legais', icon: FileSignature, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
     { id: 'relatorios', label: 'Gerar Relatórios', desc: 'Estatísticas e listagens', icon: BarChart2, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
     { id: 'cadastro-localidade', label: 'Localidades', desc: 'Gestão de comunidades', icon: MapPin, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
   ];
+
+  const handleAction = (action: any) => {
+    if (action.isModalAction) {
+      if (action.id === 'cadastro-socios') {
+        setMemberModalMode('add');
+        setMemberModalOpen(true);
+      } else if (action.id === 'recebimentos-mensalidades') {
+        setMensalidadeModalOpen(true);
+      }
+    } else {
+      setActiveView(action.id);
+    }
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
@@ -55,7 +68,7 @@ export const HomeView: React.FC = () => {
           {quickActions.map((action) => (
             <button 
               key={action.id}
-              onClick={() => setActiveView(action.id)}
+              onClick={() => handleAction(action)}
               className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-xl hover:border-blue-100 dark:hover:border-blue-900 transition-all group flex flex-col text-left relative overflow-hidden"
             >
               <div className={`w-12 h-12 ${action.bg} ${action.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>

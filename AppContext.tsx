@@ -40,6 +40,8 @@ interface AppContextType {
   deleteLocality: (id: string) => Promise<void>;
   importMembers: (newMembers: Member[]) => Promise<void>;
   importMensalidades: (newList: Mensalidade[]) => Promise<void>;
+  // Fix: Added missing addMensalidade method to context type
+  addMensalidade: (mensalidade: Mensalidade) => void;
   clearDatabase: () => void;
   isOnline: boolean;
   lastSync: string | null;
@@ -141,16 +143,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const db = await openDB();
         const tx = db.transaction([STORE_MEMBERS, STORE_CATEGORIES, STORE_LOCALITIES, STORE_MENSALIDADES], 'readonly');
-        setAllMembers((await tx.objectStore(STORE_MEMBERS).getAll()).result || []);
-        setAllCategories((await tx.objectStore(STORE_CATEGORIES).getAll()).result || []);
-        setAllLocalities((await tx.objectStore(STORE_LOCALITIES).getAll()).result || []);
-        setAllMensalidades((await tx.objectStore(STORE_MENSALIDADES).getAll()).result || []);
+        
+        // Fix: Properly handle getAll() which returns an IDBRequest
+        const membersReq = tx.objectStore(STORE_MEMBERS).getAll();
+        const catsReq = tx.objectStore(STORE_CATEGORIES).getAll();
+        const locsReq = tx.objectStore(STORE_LOCALITIES).getAll();
+        const payReq = tx.objectStore(STORE_MENSALIDADES).getAll();
+
+        membersReq.onsuccess = () => setAllMembers(membersReq.result || []);
+        catsReq.onsuccess = () => setAllCategories(catsReq.result || []);
+        locsReq.onsuccess = () => setAllLocalities(locsReq.result || []);
+        payReq.onsuccess = () => setAllMensalidades(payReq.result || []);
         
         const st = localStorage.getItem('sga_templates_v2');
         const sn = localStorage.getItem('sga_tenants_v1');
         if (st) setTemplates(JSON.parse(st));
         if (sn) setTenants(JSON.parse(sn));
-        setIsAppReady(true);
+        
+        tx.oncomplete = () => setIsAppReady(true);
       } catch (e) { setIsAppReady(true); }
     };
     boot();
@@ -253,7 +263,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           valor: cleanNumeric(p.valor),
           desconto_valor: cleanNumeric(p.desconto_valor),
           desconto_percentual: cleanNumeric(p.desconto_percentual),
-          valor_desconto_percentual: cleanNumeric(p.valor_desconto_percentual),
           valor_total: cleanNumeric(p.valor_total)
         }));
         const { error: payError } = await supabase.from('mensalidades').upsert(sanitizedPay);
@@ -446,6 +455,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setAllMensalidades(prev => {
         const next = [...prev, ...list.map(p => ({ ...p, isSynced: false }))];
         persistLocally(undefined, undefined, undefined, next);
+        return next;
+      });
+    },
+    // Fix: Added missing addMensalidade implementation to AppContext
+    addMensalidade: (m: Mensalidade) => {
+      const nextMensalidade = { ...m, id: m.id || crypto.randomUUID(), isSynced: false, tenant_id: session.user?.tenantId || '' };
+      setAllMensalidades(prev => {
+        const next = [...prev, nextMensalidade];
+        persistLocally(undefined, undefined, undefined, next);
+        syncData(undefined, undefined, undefined, next);
         return next;
       });
     },

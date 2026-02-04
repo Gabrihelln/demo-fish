@@ -252,6 +252,7 @@ export interface Member {
   observacao: string;
   dependents: Dependent[];
   photoUrl?: string;
+  uf_rg?: string;
 }
 
 export type TabType = 'frente' | 'outros' | 'verso';

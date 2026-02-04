@@ -8,6 +8,16 @@ interface NavigationContextType {
   setSidebarOpen: (open: boolean) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  // Estados do Modal de Sócio
+  isMemberModalOpen: boolean;
+  setMemberModalOpen: (open: boolean) => void;
+  memberModalMode: 'add' | 'edit';
+  setMemberModalMode: (mode: 'add' | 'edit') => void;
+  selectedMemberId: string | null;
+  setSelectedMemberId: (id: string | null) => void;
+  // Estados do Modal de Mensalidade
+  isMensalidadeModalOpen: boolean;
+  setMensalidadeModalOpen: (open: boolean) => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
@@ -15,15 +25,17 @@ const NavigationContext = createContext<NavigationContextType | undefined>(undef
 export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activeView, setActiveView] = useState('home');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isMemberModalOpen, setMemberModalOpen] = useState(false);
+  const [memberModalMode, setMemberModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   
-  // Inicializa como falso (Modo Claro) por padrão
-  // Só ativa o Dark se o usuário já tiver clicado explicitamente no botão antes (valor salvo no localStorage)
+  const [isMensalidadeModalOpen, setMensalidadeModalOpen] = useState(false);
+  
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('sga_theme');
     return saved === 'dark'; 
   });
 
-  // Efeito para aplicar a classe no HTML e persistir
   useEffect(() => {
     const root = window.document.documentElement;
     if (isDarkMode) {
@@ -41,7 +53,10 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children
 
   return (
     <NavigationContext.Provider value={{ 
-      activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode 
+      activeView, setActiveView, isSidebarOpen, setSidebarOpen, isDarkMode, toggleDarkMode,
+      isMemberModalOpen, setMemberModalOpen, memberModalMode, setMemberModalMode,
+      selectedMemberId, setSelectedMemberId,
+      isMensalidadeModalOpen, setMensalidadeModalOpen
     }}>
       {children}
     </NavigationContext.Provider>
