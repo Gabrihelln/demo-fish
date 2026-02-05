@@ -37,13 +37,35 @@ export const MensalidadesView: React.FC = () => {
 
   const allFilteredData = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return mensalidades.map(m => {
-      const socio = members.find(s => s.codigo_socio === m.codigo_socio);
-      return { ...m, nome_socio: socio ? socio.nome : 'Sócio não encontrado' };
-    }).filter(item => {
-      return item.codigo_socio.toLowerCase().includes(term) || 
-             item.nome_socio.toLowerCase().includes(term);
+    const NOT_FOUND_LABEL = 'Sócio não encontrado';
+    
+    // Criamos um mapa de sócios para busca O(1) e maior performance
+    const membersMap = new Map();
+    members.forEach(m => {
+      if (m.codigo_socio) {
+        membersMap.set(String(m.codigo_socio).trim(), m.nome);
+      }
     });
+
+    return mensalidades
+      .map(m => {
+        const cleanCode = String(m.codigo_socio || "").trim();
+        const nomeSocio = membersMap.get(cleanCode) || NOT_FOUND_LABEL;
+        return { ...m, nome_socio: nomeSocio };
+      })
+      .sort((a, b) => {
+        // Lógica de ordenação: Prioriza quem TEM sócio vinculado
+        const aNotFound = a.nome_socio === NOT_FOUND_LABEL;
+        const bNotFound = b.nome_socio === NOT_FOUND_LABEL;
+        
+        if (aNotFound && !bNotFound) return 1;
+        if (!aNotFound && bNotFound) return -1;
+        return 0; // Mantém ordem original entre os do mesmo grupo
+      })
+      .filter(item => {
+        return (item.codigo_socio || "").toLowerCase().includes(term) || 
+               (item.nome_socio || "").toLowerCase().includes(term);
+      });
   }, [mensalidades, members, searchTerm]);
 
   const paginatedData = useMemo(() => {
@@ -118,7 +140,9 @@ export const MensalidadesView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-8 py-5 text-xs font-black text-slate-800 dark:text-slate-200 uppercase truncate max-w-[200px]">
-                    {item.nome_socio}
+                    <span className={item.nome_socio === 'Sócio não encontrado' ? 'text-slate-400 italic' : ''}>
+                      {item.nome_socio}
+                    </span>
                   </td>
                   <td className="px-8 py-5 text-[10px] font-bold text-slate-500">
                     {formatDateDisplay(item.data_ultimo_mes_pago)}
@@ -164,9 +188,6 @@ export const MensalidadesView: React.FC = () => {
 
       <footer className="fixed bottom-0 left-0 lg:left-[360px] right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 p-6 z-[100] shadow-2xl flex justify-between items-center px-12">
         <div className="flex gap-4">
-          {/* <button onClick={() => setMensalidadeModalOpen(true)} className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:-translate-y-1 transition-all shadow-lg shadow-blue-600/20">
-            <Plus size={18} /> Novo Recebimento
-          </button> */}
           <button onClick={() => setActiveView('home')} className="bg-slate-900 dark:bg-slate-700 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:-translate-y-1 transition-all">
             Voltar ao Início
           </button>
