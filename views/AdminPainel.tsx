@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, Globe, Trash2, Upload, ChevronRight, AlertTriangle, 
   Database, Loader2, Save, Settings2, ShieldCheck, 
   DatabaseZap, PartyPopper, Check, Landmark, User as UserIcon,
-  FileText, Settings, Briefcase, Printer, Archive, Users, DollarSign, PenTool, Layout
+  FileText, Settings, Briefcase, Printer, Archive, Users, DollarSign, PenTool, Layout, Search, X
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { Member, Mensalidade, Tenant, TenantDetails, TenantRepresentatives } from '../types';
@@ -174,6 +174,14 @@ export const AdminPainelView: React.FC = () => {
     isOpen: false, success: false, count: 0, tenantName: '', type: 'config'
   });
 
+  // Busca de unidades
+  const [tenantSearchTerm, setTenantSearchTerm] = useState('');
+
+  // Estado para criação de nova unidade
+  const [newTenantData, setNewTenantData] = useState({ name: '', username: '', password: '' });
+  const [showCreationSuccess, setShowCreationSuccess] = useState(false);
+  const [lastCreatedName, setLastCreatedName] = useState('');
+
   useEffect(() => {
     if (activeTenant && activeTab === 'config') {
       const load = async () => {
@@ -184,7 +192,6 @@ export const AdminPainelView: React.FC = () => {
           ]);
           
           if (details) {
-            // Removemos campos extras que o DB injeta como created_at/updated_at
             const { created_at, updated_at, ...rest } = details as any;
             setUnitDetails({ ...INITIAL_TENANT_DETAILS, ...rest });
           } else {
@@ -223,6 +230,12 @@ export const AdminPainelView: React.FC = () => {
     });
     return clean;
   };
+
+  const filteredTenants = useMemo(() => {
+    const term = tenantSearchTerm.toLowerCase().trim();
+    if (!term) return tenants;
+    return tenants.filter(t => t.name.toLowerCase().includes(term));
+  }, [tenants, tenantSearchTerm]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -293,21 +306,54 @@ export const AdminPainelView: React.FC = () => {
       
       setFeedback({ isOpen: true, success: true, count: 0, tenantName: activeTenant.name, type: 'config' });
     } catch (err: any) { 
-      const errorMsg = err.message || "";
-      if (errorMsg.includes("column") || errorMsg.includes("schema cache")) {
-        const parts = errorMsg.split("'");
-        const columnName = parts.length > 1 ? parts[1] : "desconhecida";
-        alert(`Erro de Estrutura: A coluna '${columnName}' não existe ou não foi reconhecida. \n\n1. Verifique se rodou o script SQL completo no Editor do Supabase.\n2. No Supabase, vá em Settings -> API e clique em 'Reload PostgREST schema'.`);
-      } else {
-        alert(`Erro ao salvar: ${errorMsg}`); 
-      }
+      alert(`Erro ao salvar: ${err.message}`); 
     } finally { 
       setIsSubmitting(false); 
     }
   };
 
+  const handleCreateTenant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTenantData.name || !newTenantData.username || !newTenantData.password) return alert("Preencha todos os campos.");
+    setIsSubmitting(true);
+    try {
+      await addTenant(newTenantData.name, newTenantData.username, newTenantData.password);
+      setLastCreatedName(newTenantData.name);
+      setShowCreationSuccess(true);
+      setNewTenantData({ name: '', username: '', password: '' });
+    } catch (err: any) {
+      alert("Erro ao criar unidade: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderRepFields = (num: '02' | '03' | '04') => {
+    const r = `_representante_${num}`;
+    return (
+      <Section title={`Dados do Representante ${num}`}>
+        <Input className="md:col-span-3" label="Nome" name={`nome${r}`} value={(unitReps as any)[`nome${r}`]} onChange={e => setUnitReps({...unitReps, [`nome${r}`]: e.target.value})} />
+        <Input className="md:col-span-2" label="Endereço" name={`endereco${r}`} value={(unitReps as any)[`endereco${r}`]} onChange={e => setUnitReps({...unitReps, [`endereco${r}`]: e.target.value})} />
+        <Input label="Bairro" name={`bairro${r}`} value={(unitReps as any)[`bairro${r}`]} onChange={e => setUnitReps({...unitReps, [`bairro${r}`]: e.target.value})} />
+        <Input label="Cidade" name={`cidade${r}`} value={(unitReps as any)[`cidade${r}`]} onChange={e => setUnitReps({...unitReps, [`cidade${r}`]: e.target.value})} />
+        <Select label="UF" name={`uf${r}`} options={UF_OPTIONS} value={(unitReps as any)[`uf${r}`]} onChange={e => setUnitReps({...unitReps, [`uf${r}`]: e.target.value})} />
+        <Input label="RG" name={`rg${r}`} value={(unitReps as any)[`rg${r}`]} onChange={e => setUnitReps({...unitReps, [`rg${r}`]: e.target.value})} />
+        <Input label="CPF" name={`cpf${r}`} value={(unitReps as any)[`cpf${r}`]} onChange={e => setUnitReps({...unitReps, [`cpf${r}`]: e.target.value})} />
+        <Select label="Est. Civil" name={`estado_civil${r}`} options={MARITAL_STATUS_OPTIONS} value={(unitReps as any)[`estado_civil${r}`]} onChange={e => setUnitReps({...unitReps, [`estado_civil${r}`]: e.target.value})} />
+        <Input label="Função / Cargo" name={`funcao${r}`} value={(unitReps as any)[`funcao${r}`]} onChange={e => setUnitReps({...unitReps, [`funcao${r}`]: e.target.value})} />
+        <Input type="date" label="Início Mandato" name={`inicio_mandato${r}`} value={(unitReps as any)[`inicio_mandato${r}`]} onChange={e => setUnitReps({...unitReps, [`inicio_mandato${r}`]: e.target.value})} />
+        <Input type="date" label="Fim Mandato" name={`fim_mandato${r}`} value={(unitReps as any)[`fim_mandato${r}`]} onChange={e => setUnitReps({...unitReps, [`fim_mandato${r}`]: e.target.value})} />
+        <Input className="md:col-span-2" label="Cartório" name={`cartorio${r}`} value={(unitReps as any)[`cartorio${r}`]} onChange={e => setUnitReps({...unitReps, [`cartorio${r}`]: e.target.value})} />
+        <Input label="Livro" name={`livro${r}`} value={(unitReps as any)[`livro${r}`]} onChange={e => setUnitReps({...unitReps, [`livro${r}`]: e.target.value})} />
+        <Input label="Folha" name={`folha${r}`} value={(unitReps as any)[`folha${r}`]} onChange={e => setUnitReps({...unitReps, [`folha${r}`]: e.target.value})} />
+        <Input label="Nº Termo" name={`termo${r}`} value={(unitReps as any)[`termo${r}`]} onChange={e => setUnitReps({...unitReps, [`termo${r}`]: e.target.value})} />
+      </Section>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
+      {/* Feedback Modal for General Updates/Migrations */}
       {feedback.isOpen && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} />
@@ -318,6 +364,31 @@ export const AdminPainelView: React.FC = () => {
             <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Configuração Atualizada</h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">Os parâmetros da unidade <span className="text-blue-600 font-black">{feedback.tenantName}</span> foram persistidos.</p>
             <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest">Continuar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for New Unit Creation */}
+      {showCreationSuccess && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" />
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[48px] shadow-2xl relative z-10 border border-white/10 p-12 text-center">
+            <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+              <PartyPopper size={48} />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Unidade Criada!</h3>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">
+              A unidade <span className="text-blue-600 font-black">{lastCreatedName}</span> foi registrada com sucesso e já está disponível para acesso.
+            </p>
+            <button 
+              onClick={() => {
+                setShowCreationSuccess(false);
+                setCurrentStep('LIST');
+              }} 
+              className="w-full bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30"
+            >
+              Ir para Lista de Unidades
+            </button>
           </div>
         </div>
       )}
@@ -346,22 +417,69 @@ export const AdminPainelView: React.FC = () => {
       </div>
 
       {currentStep === 'LIST' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tenants.map(t => (
-            <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-xl transition-all group">
-              <div className="flex justify-between items-start mb-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl text-blue-600"><Globe size={24} /></div>
-                <button onClick={() => {if(confirm('Excluir unidade?')) deleteTenant(t.id)}} className="text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
-              </div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.name}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {t.id.split('-')[0]}...</p>
-              <button onClick={() => { setActiveTenant(t); setCurrentStep('MIGRATE'); }} className="w-full mt-6 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Configurar Unidade</button>
+        <div className="space-y-6">
+          <div className="relative group">
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+              <Search size={20} />
             </div>
-          ))}
-          <button onClick={() => setCurrentStep('CREATE')} className="border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[40px] p-8 flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-600 hover:text-blue-600 transition-all">
-            <Plus size={48} />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Adicionar Unidade</span>
-          </button>
+            <input 
+              type="text" 
+              placeholder="Pesquisar Unidade por Nome..."
+              value={tenantSearchTerm}
+              onChange={(e) => setTenantSearchTerm(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] py-5 pl-16 pr-8 text-xs font-black uppercase tracking-widest outline-none focus:ring-8 focus:ring-blue-600/5 focus:border-blue-600 text-slate-900 dark:text-white transition-all shadow-sm"
+            />
+            {tenantSearchTerm && (
+              <button onClick={() => setTenantSearchTerm('')} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"><X size={18}/></button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTenants.map(t => (
+              <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-xl transition-all group">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl text-blue-600"><Globe size={24} /></div>
+                  <button onClick={() => {if(confirm('Excluir unidade?')) deleteTenant(t.id)}} className="text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.name}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {t.id.split('-')[0]}...</p>
+                <button onClick={() => { setActiveTenant(t); setCurrentStep('MIGRATE'); }} className="w-full mt-6 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Configurar Unidade</button>
+              </div>
+            ))}
+            <button onClick={() => setCurrentStep('CREATE')} className="border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[40px] p-8 flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-600 hover:text-blue-600 transition-all min-h-[240px]">
+              <Plus size={48} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Adicionar Unidade</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStep === 'CREATE' && (
+        <div className="max-w-2xl mx-auto animate-in zoom-in-95 duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[48px] p-12 shadow-sm">
+            <div className="flex items-center gap-6 mb-10">
+              <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-xl shadow-blue-600/20">
+                <Plus size={32} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Nova Unidade</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuração de Acesso Regional</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateTenant} className="space-y-6">
+              <Input label="Nome da Unidade / Cidade" name="name" value={newTenantData.name} onChange={e => setNewTenantData({...newTenantData, name: e.target.value})} placeholder="Ex: Colônia Z-XX - Cidade" />
+              <Input label="Usuário Administrador" name="username" value={newTenantData.username} onChange={e => setNewTenantData({...newTenantData, username: e.target.value})} placeholder="Ex: admin_cidade" />
+              <Input type="password" label="Senha de Acesso" name="password" value={newTenantData.password} onChange={e => setNewTenantData({...newTenantData, password: e.target.value})} placeholder="••••••••" />
+
+              <div className="pt-6 flex gap-4">
+                <button type="button" onClick={() => setCurrentStep('LIST')} className="flex-1 px-8 py-4 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
+                <button type="submit" disabled={isSubmitting} className="flex-[2] bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-600/30 disabled:opacity-50">
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : <><Plus size={18}/> Criar Unidade</>}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -376,138 +494,116 @@ export const AdminPainelView: React.FC = () => {
             </div>
 
             {activeTab === 'config' ? (
-              <div className="space-y-10">
+              <div className="space-y-10 relative">
                 <div className="flex gap-4 border-b border-slate-100 dark:border-slate-800 mb-8 pb-4 overflow-x-auto scrollbar-hide">
                   <button onClick={() => setConfigSubTab('entidade')} className={`flex items-center gap-3 px-6 py-2 text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${configSubTab === 'entidade' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}><Landmark size={16}/> Dados da Entidade</button>
                   <button onClick={() => setConfigSubTab('presidente')} className={`flex items-center gap-3 px-6 py-2 text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${configSubTab === 'presidente' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}><UserIcon size={16}/> Presidente e Mandato</button>
                   <button onClick={() => setConfigSubTab('geral')} className={`flex items-center gap-3 px-6 py-2 text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${configSubTab === 'geral' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}><Settings size={16}/> Parâmetros Gerais</button>
                   <button onClick={() => setConfigSubTab('representantes')} className={`flex items-center gap-3 px-6 py-2 text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${configSubTab === 'representantes' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}><Users size={16}/> Representantes</button>
-                  <button onClick={handleSaveFullConfig} disabled={isSubmitting} className="ml-auto bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 shadow-xl hover:-translate-y-1 transition-all">
-                    {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={18} />} Salvar Configuração
-                  </button>
                 </div>
 
-                {configSubTab === 'entidade' && (
-                  <div className="space-y-10 animate-in slide-in-from-left-4">
-                    <Section title="Informações de Identificação">
-                      <Input className="md:col-span-3" label="Nome da Entidade" name="nome_entidade" value={unitDetails.nome_entidade} onChange={e => setUnitDetails({...unitDetails, nome_entidade: e.target.value})} />
-                      <Input label="Nome Abreviado" name="nome_abreviado" value={unitDetails.nome_abreviado} onChange={e => setUnitDetails({...unitDetails, nome_abreviado: e.target.value})} />
-                      <Input className="md:col-span-2" label="Logradouro / Endereço" name="endereco" value={unitDetails.endereco} onChange={e => setUnitDetails({...unitDetails, endereco: e.target.value})} />
-                      <Input label="Bairro" name="bairro" value={unitDetails.bairro} onChange={e => setUnitDetails({...unitDetails, bairro: e.target.value})} />
-                      <Input label="Cidade" name="cidade" value={unitDetails.cidade} onChange={e => setUnitDetails({...unitDetails, cidade: e.target.value})} />
-                      <Select label="UF" name="uf" options={UF_OPTIONS} value={unitDetails.uf} onChange={e => setUnitDetails({...unitDetails, uf: e.target.value})} />
-                      <Input label="CEP" name="cep" value={unitDetails.cep} onChange={e => setUnitDetails({...unitDetails, cep: e.target.value})} />
-                      <Input label="Telefone 1" name="telefone_1" value={unitDetails.telefone_1} onChange={e => setUnitDetails({...unitDetails, telefone_1: e.target.value})} />
-                      <Input label="Telefone 2" name="telefone_2" value={unitDetails.telefone_2} onChange={e => setUnitDetails({...unitDetails, telefone_2: e.target.value})} />
-                      <Input label="CNPJ" name="cnpj" value={unitDetails.cnpj} onChange={e => setUnitDetails({...unitDetails, cnpj: e.target.value})} />
-                      <Input label="E-mail" name="email" value={unitDetails.email} onChange={e => setUnitDetails({...unitDetails, email: e.target.value})} />
-                      <Input type="date" label="Data de Fundação" name="data_fundacao" value={unitDetails.data_fundacao} onChange={e => setUnitDetails({...unitDetails, data_fundacao: e.target.value})} />
-                    </Section>
+                <div className="pb-32">
+                  {configSubTab === 'entidade' && (
+                    <div className="space-y-10 animate-in slide-in-from-left-4">
+                      <Section title="Informações de Identificação">
+                        <Input className="md:col-span-3" label="Nome da Entidade" name="nome_entidade" value={unitDetails.nome_entidade} onChange={e => setUnitDetails({...unitDetails, nome_entidade: e.target.value})} />
+                        <Input label="Nome Abreviado" name="nome_abreviado" value={unitDetails.nome_abreviado} onChange={e => setUnitDetails({...unitDetails, nome_abreviado: e.target.value})} />
+                        <Input className="md:col-span-2" label="Logradouro / Endereço" name="endereco" value={unitDetails.endereco} onChange={e => setUnitDetails({...unitDetails, endereco: e.target.value})} />
+                        <Input label="Bairro" name="bairro" value={unitDetails.bairro} onChange={e => setUnitDetails({...unitDetails, bairro: e.target.value})} />
+                        <Input label="Cidade" name="cidade" value={unitDetails.cidade} onChange={e => setUnitDetails({...unitDetails, cidade: e.target.value})} />
+                        <Select label="UF" name="uf" options={UF_OPTIONS} value={unitDetails.uf} onChange={e => setUnitDetails({...unitDetails, uf: e.target.value})} />
+                        <Input label="CEP" name="cep" value={unitDetails.cep} onChange={e => setUnitDetails({...unitDetails, cep: e.target.value})} />
+                        <Input label="Telefone 1" name="telefone_1" value={unitDetails.telefone_1} onChange={e => setUnitDetails({...unitDetails, telefone_1: e.target.value})} />
+                        <Input label="Telefone 2" name="telefone_2" value={unitDetails.telefone_2} onChange={e => setUnitDetails({...unitDetails, telefone_2: e.target.value})} />
+                        <Input label="CNPJ" name="cnpj" value={unitDetails.cnpj} onChange={e => setUnitDetails({...unitDetails, cnpj: e.target.value})} />
+                        <Input label="E-mail" name="email" value={unitDetails.email} onChange={e => setUnitDetails({...unitDetails, email: e.target.value})} />
+                        <Input type="date" label="Data de Fundação" name="data_fundacao" value={unitDetails.data_fundacao} onChange={e => setUnitDetails({...unitDetails, data_fundacao: e.target.value})} />
+                      </Section>
+                      
+                      <Section title="Vínculos Institucionais">
+                        <Input label="Federação" name="federacao" value={unitDetails.federacao} onChange={e => setUnitDetails({...unitDetails, federacao: e.target.value})} />
+                        <Input label="Confederação" name="confederacao" value={unitDetails.confederacao} onChange={e => setUnitDetails({...unitDetails, confederacao: e.target.value})} />
+                        <Input label="Polo Regional" name="polo" value={unitDetails.polo} onChange={e => setUnitDetails({...unitDetails, polo: e.target.value})} />
+                        <Input label="Comarca" name="comarca" value={unitDetails.comarca} onChange={e => setUnitDetails({...unitDetails, comarca: e.target.value})} />
+                      </Section>
+                    </div>
+                  )}
 
-                    <Section title="Vínculos Institucionais">
-                      <Input label="Federação" name="federacao" value={unitDetails.federacao} onChange={e => setUnitDetails({...unitDetails, federacao: e.target.value})} />
-                      <Input label="Confederação" name="confederacao" value={unitDetails.confederacao} onChange={e => setUnitDetails({...unitDetails, confederacao: e.target.value})} />
-                      <Input label="Polo Regional" name="polo" value={unitDetails.polo} onChange={e => setUnitDetails({...unitDetails, polo: e.target.value})} />
-                      <Input label="Comarca" name="comarca" value={unitDetails.comarca} onChange={e => setUnitDetails({...unitDetails, comarca: e.target.value})} />
-                    </Section>
-                  </div>
-                )}
+                  {configSubTab === 'presidente' && (
+                    <div className="space-y-10 animate-in slide-in-from-right-4">
+                      <Section title="Dados do Presidente">
+                        <Input className="md:col-span-3" label="Nome do Presidente" name="nome_presidente" value={unitDetails.nome_presidente} onChange={e => setUnitDetails({...unitDetails, nome_presidente: e.target.value})} />
+                        <Input className="md:col-span-2" label="Endereço do Presidente" name="endereco_presidente" value={unitDetails.endereco_presidente} onChange={e => setUnitDetails({...unitDetails, endereco_presidente: e.target.value})} />
+                        <Input label="Bairro" name="bairro_presidente" value={unitDetails.bairro_presidente} onChange={e => setUnitDetails({...unitDetails, bairro_presidente: e.target.value})} />
+                        <Input label="Cidade" name="cidade_presidente" value={unitDetails.cidade_presidente} onChange={e => setUnitDetails({...unitDetails, cidade_presidente: e.target.value})} />
+                        <Select label="UF Presidente" name="uf_presidente" options={UF_OPTIONS} value={unitDetails.uf_presidente} onChange={e => setUnitDetails({...unitDetails, uf_presidente: e.target.value})} />
+                        <Input label="RG Presidente" name="rg_presidente" value={unitDetails.rg_presidente} onChange={e => setUnitDetails({...unitDetails, rg_presidente: e.target.value})} />
+                        <Input label="CPF Presidente" name="cpf_presidente" value={unitDetails.cpf_presidente} onChange={e => setUnitDetails({...unitDetails, cpf_presidente: e.target.value})} />
+                        <Select label="Est. Civil" name="estado_civil_presidente" options={MARITAL_STATUS_OPTIONS} value={unitDetails.estado_civil_presidente} onChange={e => setUnitDetails({...unitDetails, estado_civil_presidente: e.target.value})} />
+                        <Input label="Profissão Presidente" name="profissao_presidente" value={unitDetails.profissao_presidente} onChange={e => setUnitDetails({...unitDetails, profissao_presidente: e.target.value})} />
+                      </Section>
 
-                {configSubTab === 'presidente' && (
-                  <div className="space-y-10 animate-in slide-in-from-right-4">
-                    <Section title="Dados do Presidente">
-                      <Input className="md:col-span-3" label="Nome do Presidente" name="nome_presidente" value={unitDetails.nome_presidente} onChange={e => setUnitDetails({...unitDetails, nome_presidente: e.target.value})} />
-                      <Input className="md:col-span-2" label="Endereço do Presidente" name="endereco_presidente" value={unitDetails.endereco_presidente} onChange={e => setUnitDetails({...unitDetails, endereco_presidente: e.target.value})} />
-                      <Input label="Bairro" name="bairro_presidente" value={unitDetails.bairro_presidente} onChange={e => setUnitDetails({...unitDetails, bairro_presidente: e.target.value})} />
-                      <Input label="Cidade" name="cidade_presidente" value={unitDetails.cidade_presidente} onChange={e => setUnitDetails({...unitDetails, cidade_presidente: e.target.value})} />
-                      <Select label="UF Presidente" name="uf_presidente" options={UF_OPTIONS} value={unitDetails.uf_presidente} onChange={e => setUnitDetails({...unitDetails, uf_presidente: e.target.value})} />
-                      <Input label="RG Presidente" name="rg_presidente" value={unitDetails.rg_presidente} onChange={e => setUnitDetails({...unitDetails, rg_presidente: e.target.value})} />
-                      <Input label="CPF Presidente" name="cpf_presidente" value={unitDetails.cpf_presidente} onChange={e => setUnitDetails({...unitDetails, cpf_presidente: e.target.value})} />
-                      <Select label="Est. Civil" name="estado_civil_presidente" options={MARITAL_STATUS_OPTIONS} value={unitDetails.estado_civil_presidente} onChange={e => setUnitDetails({...unitDetails, estado_civil_presidente: e.target.value})} />
-                      <Input label="Profissão Presidente" name="profissao_presidente" value={unitDetails.profissao_presidente} onChange={e => setUnitDetails({...unitDetails, profissao_presidente: e.target.value})} />
-                    </Section>
+                      <Section title="Registro do Mandato / Atas">
+                        <Input type="date" label="Início do Mandato" name="inicio_mandato" value={unitDetails.inicio_mandato} onChange={e => setUnitDetails({...unitDetails, inicio_mandato: e.target.value})} />
+                        <Input type="date" label="Fim do Mandato" name="fim_mandato" value={unitDetails.fim_mandato} onChange={e => setUnitDetails({...unitDetails, fim_mandato: e.target.value})} />
+                        <Input className="md:col-span-2" label="Cartório de Registro" name="cartorio" value={unitDetails.cartorio} onChange={e => setUnitDetails({...unitDetails, cartorio: e.target.value})} />
+                        <Input label="RC Posse (Livro)" name="rc_posse_livro" value={unitDetails.rc_posse_livro} onChange={e => setUnitDetails({...unitDetails, rc_posse_livro: e.target.value})} />
+                        <Input label="RC Posse (Folha)" name="rc_posse_folha" value={unitDetails.rc_posse_folha} onChange={e => setUnitDetails({...unitDetails, rc_posse_folha: e.target.value})} />
+                        <Input label="RC Posse (Nº Termo)" name="rc_posse_numero_termo" value={unitDetails.rc_posse_numero_termo} onChange={e => setUnitDetails({...unitDetails, rc_posse_numero_termo: e.target.value})} />
+                        <Input type="date" label="Data da ATA" name="data_ata" value={unitDetails.data_ata} onChange={e => setUnitDetails({...unitDetails, data_ata: e.target.value})} />
+                      </Section>
+                    </div>
+                  )}
 
-                    <Section title="Registro do Mandato / Atas">
-                      <Input type="date" label="Início do Mandato" name="inicio_mandato" value={unitDetails.inicio_mandato} onChange={e => setUnitDetails({...unitDetails, inicio_mandato: e.target.value})} />
-                      <Input type="date" label="Fim do Mandato" name="fim_mandato" value={unitDetails.fim_mandato} onChange={e => setUnitDetails({...unitDetails, fim_mandato: e.target.value})} />
-                      <Input className="md:col-span-2" label="Cartório de Registro" name="cartorio" value={unitDetails.cartorio} onChange={e => setUnitDetails({...unitDetails, cartorio: e.target.value})} />
-                      <Input label="RC Posse (Livro)" name="rc_posse_livro" value={unitDetails.rc_posse_livro} onChange={e => setUnitDetails({...unitDetails, rc_posse_livro: e.target.value})} />
-                      <Input label="RC Posse (Folha)" name="rc_posse_folha" value={unitDetails.rc_posse_folha} onChange={e => setUnitDetails({...unitDetails, rc_posse_folha: e.target.value})} />
-                      <Input label="RC Posse (Nº Termo)" name="rc_posse_numero_termo" value={unitDetails.rc_posse_numero_termo} onChange={e => setUnitDetails({...unitDetails, rc_posse_numero_termo: e.target.value})} />
-                      <Input type="date" label="Data da ATA" name="data_ata" value={unitDetails.data_ata} onChange={e => setUnitDetails({...unitDetails, data_ata: e.target.value})} />
-                    </Section>
-                  </div>
-                )}
+                  {configSubTab === 'geral' && (
+                    <div className="space-y-10 animate-in fade-in">
+                      <Section title="Parâmetros Operacionais">
+                         <Input label="Valor Mensalidade (R$)" name="valor_mensalidade" value={unitDetails.valor_mensalidade} onChange={e => setUnitDetails({...unitDetails, valor_mensalidade: e.target.value})} />
+                         <Input label="Valor Filiação (R$)" name="valor_filiacao" value={unitDetails.valor_filiacao} onChange={e => setUnitDetails({...unitDetails, valor_filiacao: e.target.value})} />
+                         <Input label="Qtd Meses a Pagar" name="quantidade_meses_pagar" value={unitDetails.quantidade_meses_pagar} onChange={e => setUnitDetails({...unitDetails, quantidade_meses_pagar: e.target.value})} />
+                         <Input label="Inativo Após (Meses)" name="considerar_inativo_apos" value={unitDetails.considerar_inativo_apos} onChange={e => setUnitDetails({...unitDetails, considerar_inativo_apos: e.target.value})} />
+                         <Input type="date" label="Corte Votação" name="data_filiado_nao_pode_votar" value={unitDetails.data_filiado_nao_pode_votar} onChange={e => setUnitDetails({...unitDetails, data_filiado_nao_pode_votar: e.target.value})} />
+                         <Input label="Ano de Exercício" name="ano" value={unitDetails.ano} onChange={e => setUnitDetails({...unitDetails, ano: e.target.value})} />
+                         <Input className="md:col-span-2" label="Profissão Padrão" name="profissao" value={unitDetails.profissao} onChange={e => setUnitDetails({...unitDetails, profissao: e.target.value})} />
+                      </Section>
 
-                {configSubTab === 'geral' && (
-                  <div className="space-y-10 animate-in fade-in">
-                    <Section title="Parâmetros Operacionais">
-                       <Input label="Valor Mensalidade (R$)" name="valor_mensalidade" value={unitDetails.valor_mensalidade} onChange={e => setUnitDetails({...unitDetails, valor_mensalidade: e.target.value})} />
-                       <Input label="Valor Filiação (R$)" name="valor_filiacao" value={unitDetails.valor_filiacao} onChange={e => setUnitDetails({...unitDetails, valor_filiacao: e.target.value})} />
-                       <Input label="Qtd Meses a Pagar" name="quantidade_meses_pagar" value={unitDetails.quantidade_meses_pagar} onChange={e => setUnitDetails({...unitDetails, quantidade_meses_pagar: e.target.value})} />
-                       <Input label="Inativo Após (Meses)" name="considerar_inativo_apos" value={unitDetails.considerar_inativo_apos} onChange={e => setUnitDetails({...unitDetails, considerar_inativo_apos: e.target.value})} />
-                       <Input type="date" label="Corte Votação" name="data_filiado_nao_pode_votar" value={unitDetails.data_filiado_nao_pode_votar} onChange={e => setUnitDetails({...unitDetails, data_filiado_nao_pode_votar: e.target.value})} />
-                       <Input label="Ano de Exercício" name="ano" value={unitDetails.ano} onChange={e => setUnitDetails({...unitDetails, ano: e.target.value})} />
-                       <Input className="md:col-span-2" label="Profissão Padrão" name="profissao" value={unitDetails.profissao} onChange={e => setUnitDetails({...unitDetails, profissao: e.target.value})} />
-                    </Section>
+                      <Section title="Configuração de Impressão e Design">
+                         <Select label="Modelo da Carteira" name="modelo_carteira" options={['Modelo2020', 'Modelo Antigo', 'PVC Digital']} value={unitDetails.modelo_carteira} onChange={e => setUnitDetails({...unitDetails, modelo_carteira: e.target.value})} />
+                         <Select label="Tipo de Impressão" name="tipo_impressao" options={['Fiscal 8Cm 2 Vias', 'Recibo Simples', 'Papel A4']} value={unitDetails.tipo_impressao} onChange={e => setUnitDetails({...unitDetails, tipo_impressao: e.target.value})} />
+                         <Select label="Modelo Impressora" name="impressora" options={['Padrão', 'Térmica 80mm', 'Térmica 58mm']} value={unitDetails.impressora} onChange={e => setUnitDetails({...unitDetails, impressora: e.target.value})} />
+                         <Select label="Vias na Declaração" name="quantidade_vias_declaracao" options={['1 via', '2 vias', '3 vias']} value={unitDetails.quantidade_vias_declaracao} onChange={e => setUnitDetails({...unitDetails, quantidade_vias_declaracao: e.target.value})} />
+                         <Input className="md:col-span-2" label="Texto Logotipo" name="logotipo" value={unitDetails.logotipo} onChange={e => setUnitDetails({...unitDetails, logotipo: e.target.value})} />
+                         <Input className="md:col-span-2" label="Endereço Logotipo" name="logotipo_endereco" value={unitDetails.logotipo_endereco} onChange={e => setUnitDetails({...unitDetails, logotipo_endereco: e.target.value})} />
+                      </Section>
 
-                    <Section title="Configuração de Impressão e Design">
-                       <Select label="Modelo da Carteira" name="modelo_carteira" options={['Modelo2020', 'Modelo Antigo', 'PVC Digital']} value={unitDetails.modelo_carteira} onChange={e => setUnitDetails({...unitDetails, modelo_carteira: e.target.value})} />
-                       <Select label="Tipo de Impressão" name="tipo_impressao" options={['Fiscal 8Cm 2 Vias', 'Recibo Simples', 'Papel A4']} value={unitDetails.tipo_impressao} onChange={e => setUnitDetails({...unitDetails, tipo_impressao: e.target.value})} />
-                       <Select label="Modelo Impressora" name="impressora" options={['Padrão', 'Térmica 80mm', 'Térmica 58mm']} value={unitDetails.impressora} onChange={e => setUnitDetails({...unitDetails, impressora: e.target.value})} />
-                       <Select label="Vias na Declaração" name="quantidade_vias_declaracao" options={['1 via', '2 vias', '3 vias']} value={unitDetails.quantidade_vias_declaracao} onChange={e => setUnitDetails({...unitDetails, quantidade_vias_declaracao: e.target.value})} />
-                       <Input className="md:col-span-2" label="Texto Logotipo" name="logotipo" value={unitDetails.logotipo} onChange={e => setUnitDetails({...unitDetails, logotipo: e.target.value})} />
-                       <Input className="md:col-span-2" label="Endereço Logotipo" name="logotipo_endereco" value={unitDetails.logotipo_endereco} onChange={e => setUnitDetails({...unitDetails, logotipo_endereco: e.target.value})} />
-                    </Section>
+                      <Section title="Dados Bancários e Oficiais">
+                         <Input label="Banco" name="banco" value={unitDetails.banco} onChange={e => setUnitDetails({...unitDetails, banco: e.target.value})} />
+                         <Input label="Agência" name="agencia" value={unitDetails.agencia} onChange={e => setUnitDetails({...unitDetails, agencia: e.target.value})} />
+                         <Input label="Conta Corrente" name="conta_corrente" value={unitDetails.conta_corrente} onChange={e => setUnitDetails({...unitDetails, conta_corrente: e.target.value})} />
+                         <Input label="Registro Federal" name="registro_federal" value={unitDetails.registro_federal} onChange={e => setUnitDetails({...unitDetails, registro_federal: e.target.value})} />
+                      </Section>
+                    </div>
+                  )}
 
-                    <Section title="Dados Bancários e Oficiais">
-                       <Input label="Banco" name="banco" value={unitDetails.banco} onChange={e => setUnitDetails({...unitDetails, banco: e.target.value})} />
-                       <Input label="Agência" name="agencia" value={unitDetails.agencia} onChange={e => setUnitDetails({...unitDetails, agencia: e.target.value})} />
-                       <Input label="Conta Corrente" name="conta_corrente" value={unitDetails.conta_corrente} onChange={e => setUnitDetails({...unitDetails, conta_corrente: e.target.value})} />
-                       <Input label="Registro Federal" name="registro_federal" value={unitDetails.registro_federal} onChange={e => setUnitDetails({...unitDetails, registro_federal: e.target.value})} />
-                    </Section>
-                  </div>
-                )}
+                  {configSubTab === 'representantes' && (
+                    <div className="space-y-10 animate-in slide-in-from-bottom-4">
+                      {renderRepFields('02')}
+                      {renderRepFields('03')}
+                      {renderRepFields('04')}
+                    </div>
+                  )}
+                </div>
 
-                {configSubTab === 'representantes' && (
-                  <div className="space-y-10 animate-in slide-in-from-bottom-4">
-                    <Section title="Representante 02">
-                       <Input className="md:col-span-2" label="Nome" name="nome_representante_02" value={unitReps.nome_representante_02} onChange={e => setUnitReps({...unitReps, nome_representante_02: e.target.value})} />
-                       <Input label="RG" name="rg_representante_02" value={unitReps.rg_representante_02} onChange={e => setUnitReps({...unitReps, rg_representante_02: e.target.value})} />
-                       <Input label="CPF" name="cpf_representante_02" value={unitReps.cpf_representante_02} onChange={e => setUnitReps({...unitReps, cpf_representante_02: e.target.value})} />
-                       <Input label="Função" name="funcao_representante_02" value={unitReps.funcao_representante_02} onChange={e => setUnitReps({...unitReps, funcao_representante_02: e.target.value})} />
-                       <Input type="date" label="Início Mandato" name="inicio_mandato_representante_02" value={unitReps.inicio_mandato_representante_02} onChange={e => setUnitReps({...unitReps, inicio_mandato_representante_02: e.target.value})} />
-                       <Input type="date" label="Fim Mandato" name="fim_mandato_representante_02" value={unitReps.fim_mandato_representante_02} onChange={e => setUnitReps({...unitReps, fim_mandato_representante_02: e.target.value})} />
-                       <Input className="md:col-span-2" label="Endereço" name="endereco_representante_02" value={unitReps.endereco_representante_02} onChange={e => setUnitReps({...unitReps, endereco_representante_02: e.target.value})} />
-                       <Input label="Bairro" name="bairro_representante_02" value={unitReps.bairro_representante_02} onChange={e => setUnitReps({...unitReps, bairro_representante_02: e.target.value})} />
-                       <Input label="Cidade" name="cidade_representante_02" value={unitReps.cidade_representante_02} onChange={e => setUnitReps({...unitReps, cidade_representante_02: e.target.value})} />
-                       <Select label="UF" name="uf_representante_02" options={UF_OPTIONS} value={unitReps.uf_representante_02} onChange={e => setUnitReps({...unitReps, uf_representante_02: e.target.value})} />
-                       <Input label="Cartório" name="cartorio_representante_02" value={unitReps.cartorio_representante_02} onChange={e => setUnitReps({...unitReps, cartorio_representante_02: e.target.value})} />
-                       <Input label="Livro" name="livro_representante_02" value={unitReps.livro_representante_02} onChange={e => setUnitReps({...unitReps, livro_representante_02: e.target.value})} />
-                       <Input label="Folha" name="folha_representante_02" value={unitReps.folha_representante_02} onChange={e => setUnitReps({...unitReps, folha_representante_02: e.target.value})} />
-                       <Input label="Termo" name="termo_representante_02" value={unitReps.termo_representante_02} onChange={e => setUnitReps({...unitReps, termo_representante_02: e.target.value})} />
-                    </Section>
-
-                    <Section title="Representante 03">
-                       <Input className="md:col-span-2" label="Nome" name="nome_representante_03" value={unitReps.nome_representante_03} onChange={e => setUnitReps({...unitReps, nome_representante_03: e.target.value})} />
-                       <Input label="RG" name="rg_representante_03" value={unitReps.rg_representante_03} onChange={e => setUnitReps({...unitReps, rg_representante_03: e.target.value})} />
-                       <Input label="CPF" name="cpf_representante_03" value={unitReps.cpf_representante_03} onChange={e => setUnitReps({...unitReps, cpf_representante_03: e.target.value})} />
-                       <Input label="Função" name="funcao_representante_03" value={unitReps.funcao_representante_03} onChange={e => setUnitReps({...unitReps, funcao_representante_03: e.target.value})} />
-                       <Input type="date" label="Início Mandato" name="inicio_mandato_representante_03" value={unitReps.inicio_mandato_representante_03} onChange={e => setUnitReps({...unitReps, inicio_mandato_representante_03: e.target.value})} />
-                       <Input type="date" label="Fim Mandato" name="fim_mandato_representante_03" value={unitReps.fim_mandato_representante_03} onChange={e => setUnitReps({...unitReps, fim_mandato_representante_03: e.target.value})} />
-                       <Input className="md:col-span-2" label="Endereço" name="endereco_representante_03" value={unitReps.endereco_representante_03} onChange={e => setUnitReps({...unitReps, endereco_representante_03: e.target.value})} />
-                    </Section>
-
-                    <Section title="Representante 04">
-                       <Input className="md:col-span-2" label="Nome" name="nome_representante_04" value={unitReps.nome_representante_04} onChange={e => setUnitReps({...unitReps, nome_representante_04: e.target.value})} />
-                       <Input label="RG" name="rg_representante_04" value={unitReps.rg_representante_04} onChange={e => setUnitReps({...unitReps, rg_representante_04: e.target.value})} />
-                       <Input label="CPF" name="cpf_representante_04" value={unitReps.cpf_representante_04} onChange={e => setUnitReps({...unitReps, cpf_representante_04: e.target.value})} />
-                       <Input label="Função" name="funcao_representante_04" value={unitReps.funcao_representante_04} onChange={e => setUnitReps({...unitReps, funcao_representante_04: e.target.value})} />
-                       <Input type="date" label="Início Mandato" name="inicio_mandato_representante_04" value={unitReps.inicio_mandato_representante_04} onChange={e => setUnitReps({...unitReps, inicio_mandato_representante_04: e.target.value})} />
-                       <Input type="date" label="Fim Mandato" name="fim_mandato_representante_04" value={unitReps.fim_mandato_representante_04} onChange={e => setUnitReps({...unitReps, fim_mandato_representante_04: e.target.value})} />
-                    </Section>
-                  </div>
-                )}
+                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-16 z-[100] animate-in slide-in-from-bottom-8">
+                  <button 
+                    onClick={handleSaveFullConfig} 
+                    disabled={isSubmitting} 
+                    className="bg-emerald-600 text-white px-12 py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest flex items-center gap-4 shadow-2xl shadow-emerald-600/40 hover:-translate-y-2 active:scale-95 transition-all border border-white/20"
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} 
+                    Salvar Todas as Alterações
+                  </button>
+                </div>
               </div>
             ) : activeTab === 'import-config' ? (
               <div className="space-y-10">
