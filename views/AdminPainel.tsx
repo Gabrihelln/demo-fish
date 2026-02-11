@@ -4,7 +4,8 @@ import {
   Plus, Globe, Trash2, Upload, ChevronRight, AlertTriangle, 
   Database, Loader2, Save, Settings2, ShieldCheck, 
   DatabaseZap, PartyPopper, Check, Landmark, User as UserIcon,
-  FileText, Settings, Briefcase, Printer, Archive, Users, DollarSign, PenTool, Layout, Search, X
+  FileText, Settings, Briefcase, Printer, Archive, Users, DollarSign, PenTool, Layout, Search, X,
+  ShieldAlert, AlertCircle
 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { Member, Mensalidade, Tenant, TenantDetails, TenantRepresentatives } from '../types';
@@ -24,25 +25,112 @@ interface MigrationFeedback {
 }
 
 const SOCIO_FIELD_MAP: Record<string, string[]> = {
-  codigo_socio: ["Codigo", "Socio", "Matricula", "codigo_socio", "Inscricao"],
-  nome: ["Nome", "Associado", "nome", "Nome_Socio"],
-  cpf: ["Cpf", "CPF", "cpf"],
-  rg: ["Rg", "RG", "rg"],
-  data_nascimento: ["Nascimento", "Dt_Nasc", "data_nascimento", "Data_Nasc"],
-  cidade: ["Cidade", "municipio", "cidade"],
-  uf: ["UF", "uf"],
-  bairro: ["Bairro", "bairro"],
-  endereco: ["Endereco", "endereco"],
-  telefone: ["Telefone", "Fone", "telefone"],
-  codigo_comunidade: ["Localidade", "Comunidade", "codigo_comunidade"]
+  codigo_socio: ["Codigo do Socio", "Codigo", "Socio", "Matricula", "codigo_socio", "Inscricao", "Numero", "CODIGO", "MATRICULA"],
+  data_admissao: ["Data de Admissao", "Data_Admissao", "Admissao", "1a_Data_pag"],
+  codigo_antigo: ["Codigo Antigo", "Cod_Antigo"],
+  recadastro: ["Recadastro"],
+  codigo_delegacia: ["Codigo Delegacia", "Cod_Delegacia"],
+  codigo_comunidade: ["Cod Comunidade", "Localidade", "Comunidade", "codigo_comunidade", "Vila", "LOCALIDADE"],
+  data_nascimento: ["Data de Nascimentos", "Nascimento", "Dt_Nasc", "data_nascimento", "Data_Nasc", "DATA_PAGAMENTO", "DATA_NASC", "NASC"],
+  nome: ["Nome", "Associado", "nome", "Nome_Socio", "NOME", "NOME_DO_SOCIO", "CLIENTE"],
+  apelido: ["Apelido", "Alcunha", "PeloNome", "APELIDO"],
+  nome_pai: ["Pai", "Nome_Pai", "Genitor", "PAI"],
+  nome_mae: ["Mae", "Nome_Mae", "Genitora", "MAE"],
+  estado_civil: ["Estado Civil", "Est_Civil"],
+  conjuge: ["Conjuge"],
+  nacionalidade: ["Nacionalidade", "Pais"],
+  naturalidade: ["Naturalidade", "Cidade_Nasc"],
+  uf_naturalidade: ["UF Naturalidade", "UF_Naturalidade"],
+  endereco: ["Endereço", "Endereco", "endereco", "Logradouro", "Rua", "ENDERECO"],
+  numero: ["Num", "Numero_Casa", "No", "NUMERO", "CASA_NUM"],
+  bairro: ["Bairro", "bairro", "BAIRRO", "DISTRITO"],
+  cidade: ["Cidade", "municipio", "cidade", "MUNICIPIO", "CIDADE"],
+  uf: ["Uf", "UF", "uf", "Estado", "ESTADO", "SIGLA_UF"],
+  cep: ["CEP", "Cep", "Codigo_Postal"],
+  complemento: ["Complemento"],
+  ponto_referencia: ["Pt de Referencia", "Ponto_Referencia"],
+  telefone: ["Telefone", "Fone", "telefone", "Celular", "Contato", "CELULAR", "FONE"],
+  profissao: ["Profissao", "Ocupacao", "Trabalho", "PROFISSAO"],
+  empregador: ["Empregador"],
+  local_trabalho: ["Loc Trabalho", "Local_Trabalho"],
+  alfabetizado: ["Alfabetizado"],
+  escolaridade: ["Escolaridade"],
+  rg: ["RG", "Rg", "rg", "Identidade", "RG_SOCIO"],
+  orgao_expedidor_rg: ["SSP", "Orgao_RG"],
+  data_expedicao_rg: ["Dt Expedição Rg", "Data_RG"],
+  cpf: ["CPF", "Cpf", "cpf", "Documento", "CPF_CNPJ", "CPF_SOCIO"],
+  ctps: ["Ctps", "CTPS", "CarteiraTrabalho"],
+  serie_ctps: ["Série", "Serie_CTPS"],
+  data_expedicao_ctps: ["Expedição CTPS", "Data_CTPS"],
+  titulo_eleitor: ["Titulo", "Titulo_Eleitor"],
+  zona_eleitoral: ["Zona"],
+  secao_eleitoral: ["Seção", "Secao"],
+  cir: ["CIR"],
+  embarcacao: ["Embarcacao", "Barco"],
+  embarcacao_rgp: ["Emb_RGP", "RGP_Embarcacao"],
+  rgp_uf: ["RGP_UF"],
+  ab: ["AB"],
+  numero_tripulantes: ["NR_tripulantes"],
+  cpf_proprietario: ["CPF_proprietario"],
+  quantidade_membros_familia: ["Qtd de Memb na Familia"],
+  renda_familiar: ["Renda Familiar"],
+  inscricao_incra: ["Insc incra", "INCRA"],
+  area_fazenda: ["Area_da_Fazenda"],
+  livro: ["Livro"],
+  folha: ["Folha"],
+  numero_termo: ["Num Termo", "Termo"],
+  nit: ["NIT", "Nit"],
+  pis: ["PIS", "Pis", "PASEP"],
+  cei: ["CEI"],
+  caepf: ["CAEPF"],
+  numero_propriedade_receita_federal: ["Nº prop Rec Federal"],
+  data_emissao_rgp: ["Emissao_RGP"],
+  codigo_categoria: ["Cod Categoria"],
+  situacao: ["Situação", "Situacao", "Status", "Ativo_Inativo", "SITUACAO"],
+  ultimo_mes_pago: ["Ult Mes Pago", "UltimoMes", "Ultimo_Pgto", "ultimo_mes_pago", "ULT_MES_PAGO"],
+  numero_beneficio: ["Num Beneficio", "Beneficio"],
+  especie: ["especie", "Especie"],
+  data_transferencia: ["Data Transferencia"],
+  data_falecimento: ["Dt de Falicimento"],
+  observacao: ["Observação", "Observacao", "Obs", "Notas", "OBS"],
+  local_foto: ["local_Foto"],
+  webcam: ["webcan", "Webcam"],
+  sexo: ["Sexo"],
+  data_ultimo_pagamento: ["Data do Ult pagamento"],
+  primeira_data_pagamento: ["1a_Data_pag"],
+  ultimo_dia_pago: ["Ult_dia_pago"],
+  destino_transferencia: ["Pra onde foi transferido"],
+  data_ultimo_movimento: ["Data Ult Movimento"],
+  pasta_socios: ["Pasta_Socios"],
+  pasta_embarcacao: ["Pasta_Embarcacao"],
+  email: ["Email", "E-mail", "CorreioEletronico"],
+  id_defeso: ["ID_Defeso"],
+  numero_dap: ["NR_DAP"],
+  grupo_dap: ["GRUPO_DAP"],
+  validade_dap: ["Validade_DAP"],
+  tem_defeso: ["Tem_Defeso"],
+  tipo_sanguineo: ["Tipo_Sangue", "Fator_RH"],
+  sus: ["SUS"],
+  outros_documentos: ["OutrosDocumentos"],
+  situacao_mpa: ["Situacao_MPA"],
+  codigo_gps_mpa: ["CodGPS_MPA"],
+  senha_gps_mpa: ["SenhaGPS_MPA"],
+  senha_inss_mpa: ["SenhaINSS_MPA"]
 };
 
 const MENSALIDADE_FIELD_MAP: Record<string, string[]> = {
-  codigo_socio: ["Codigo", "Socio", "Matricula", "codigo_socio", "Inscricao"],
-  valor: ["Valor", "Mensalidade", "valor"],
-  data: ["Data", "Pagamento", "data"],
-  quantidade_meses: ["Quantidade", "Meses", "quantidade_meses"],
-  valor_total: ["Total", "valor_total"]
+  codigo_mensalidade: ["id_Mensalidade", "Codigo da Mensalidade", "Codigo", "ID_MENSALIDADE", "COD_MENSALIDADE"],
+  codigo_socio: ["Codigo do Socio", "Codigo", "Socio", "Matricula", "codigo_socio", "Inscricao", "Socio_ID", "COD_SOCIO", "CODIGO_DO_SOCIO"],
+  valor: ["Valor", "Mensalidade", "valor", "Vlr_Bruto", "VALOR"],
+  data: ["Data", "Pagamento", "data", "Data_Pgto", "DATA_PAGAMENTO"],
+  quantidade_meses: ["Qtd mes", "Quantidade", "Meses", "quantidade_meses", "Qtd", "QTD_MESES", "QTD_MES"],
+  valor_total: ["Valor Total", "Total", "valor_total", "Vlr_Liquido", "VALOR_TOTAL"],
+  observacao: ["Observação", "Observacao", "Obs", "Notas", "OBS"],
+  data_ate_quando_pagar: ["Data ate Qd quer Pagar", "Validade", "Pago_Ate", "data_ate_quando_pagar", "VALIDADE", "DATA_ATE_QD_QUER_PAGAR"],
+  data_ultimo_mes_pago: ["Data do Ultimo Mes Pago", "Ultimo_Mes", "data_ultimo_mes_pago", "DATA_DO_ULTIMO_MES_PAGO"],
+  desconto_valor: ["Desconto em Real", "desconto_valor", "DESCONTO_EM_REAL"],
+  desconto_percentual: ["Desconto em Percentual", "desconto_percentual", "DESCONTO_EM_PERCENTUAL"],
+  valor_desconto_percentual: ["Vlr Desc Perc", "valor_desconto_percentual", "VLR_DESC_PERC"]
 };
 
 const CONFIG_FIELD_MAP: Record<string, string[]> = {
@@ -174,13 +262,14 @@ export const AdminPainelView: React.FC = () => {
     isOpen: false, success: false, count: 0, tenantName: '', type: 'config'
   });
 
-  // Busca de unidades
   const [tenantSearchTerm, setTenantSearchTerm] = useState('');
-
-  // Estado para criação de nova unidade
   const [newTenantData, setNewTenantData] = useState({ name: '', username: '', password: '' });
   const [showCreationSuccess, setShowCreationSuccess] = useState(false);
   const [lastCreatedName, setLastCreatedName] = useState('');
+
+  // Estados para exclusão definitiva
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     if (activeTenant && activeTab === 'config') {
@@ -249,7 +338,7 @@ export const AdminPainelView: React.FC = () => {
         
         const newMapping: Record<string, string> = {};
         const keys = Object.keys(dataArray[0]);
-        const currentMap = activeTab === 'socios' ? SOCIO_FIELD_MAP : (activeTab === 'mensalidades' ? MENSALIDADE_FIELD_MAP : CONFIG_FIELD_MAP);
+        const currentMap = activeTab === 'socios' ? SOCIO_FIELD_MAP : (activeTab === 'mensalidades' ? MENSALIDADE_FIELD_MAP : (activeTab === 'config' || activeTab === 'import-config' ? CONFIG_FIELD_MAP : {}));
         
         keys.forEach(key => {
           const nKey = normalize(key);
@@ -287,6 +376,70 @@ export const AdminPainelView: React.FC = () => {
       setPendingData(null);
     } catch (e: any) { alert(`Erro na migração: ${e.message}`); }
     finally { setIsImporting(false); }
+  };
+
+  const finalizeDataMigration = async () => {
+    if (!pendingData || !activeTenant) return;
+    setIsImporting(true);
+    try {
+      const isSocio = activeTab === 'socios';
+      const processedList = pendingData.map(oldItem => {
+        const newItem: any = isSocio ? { ...EMPTY_MEMBER } : {};
+        newItem.id = crypto.randomUUID();
+        newItem.tenant_id = activeTenant.id;
+        newItem.isSynced = false;
+
+        Object.keys(mapping).forEach(oldKey => {
+          const target = mapping[oldKey];
+          let value = oldItem[oldKey];
+          
+          if (target.includes('data') || target.includes('nascimento') || target.includes('admissao') || target.includes('recadastro') || target.includes('pago') || target.includes('emissao') || target.includes('expedicao') || target.includes('quando')) {
+            if (typeof value === 'string' && value.trim()) {
+              value = value.split(' ')[0].substring(0, 10);
+            }
+          }
+          
+          if (target === 'cpf' || target === 'cnpj') {
+            if (typeof value === 'string') value = value.replace(/\D/g, '');
+          }
+
+          if (target === 'codigo_socio') {
+            value = String(value || "").trim();
+          }
+
+          newItem[target] = value ?? "";
+        });
+
+        if (!isSocio) {
+          ['valor', 'valor_total', 'desconto_valor', 'valor_desconto_percentual'].forEach(field => {
+            if (newItem[field]) newItem[field] = String(newItem[field]).replace(',', '.');
+          });
+          if (newItem.quantidade_meses) newItem.quantidade_meses = String(newItem.quantidade_meses);
+          if (newItem.desconto_percentual) newItem.desconto_percentual = String(newItem.desconto_percentual);
+        }
+
+        return newItem;
+      });
+
+      if (isSocio) {
+        await importMembers(processedList);
+      } else {
+        await importMensalidades(processedList);
+      }
+
+      setFeedback({ 
+        isOpen: true, 
+        success: true, 
+        count: processedList.length, 
+        tenantName: activeTenant.name, 
+        type: activeTab as any 
+      });
+      setPendingData(null);
+    } catch (e: any) {
+      alert(`Erro no processamento: ${e.message}`);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSaveFullConfig = async () => {
@@ -328,6 +481,21 @@ export const AdminPainelView: React.FC = () => {
     }
   };
 
+  const finalizeTenantDeletion = async () => {
+    if (!tenantToDelete) return;
+    setIsSubmitting(true);
+    try {
+      await deleteTenant(tenantToDelete.id);
+      setIsDeleteModalOpen(false);
+      setTenantToDelete(null);
+      alert("Unidade e todos os dados vinculados foram removidos do banco de dados com sucesso.");
+    } catch (err: any) {
+      alert("Falha na exclusão remota: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const renderRepFields = (num: '02' | '03' | '04') => {
     const r = `_representante_${num}`;
     return (
@@ -353,7 +521,7 @@ export const AdminPainelView: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
-      {/* Feedback Modal for General Updates/Migrations */}
+      {/* Feedback Modal */}
       {feedback.isOpen && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} />
@@ -361,14 +529,58 @@ export const AdminPainelView: React.FC = () => {
             <div className={`w-24 h-24 ${feedback.success ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'} rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner`}>
               {feedback.success ? <PartyPopper size={48} /> : <AlertTriangle size={48} />}
             </div>
-            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Configuração Atualizada</h3>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">Os parâmetros da unidade <span className="text-blue-600 font-black">{feedback.tenantName}</span> foram persistidos.</p>
+            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">
+              {feedback.type === 'config' || feedback.type === 'import-config' ? 'Configuração Atualizada' : 'Migração Concluída'}
+            </h3>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">
+              {feedback.count > 0 
+                ? `${feedback.count} registros foram importados para a unidade ` 
+                : 'Os parâmetros da unidade '
+              }
+              <span className="text-blue-600 font-black">{feedback.tenantName}</span> foram persistidos.
+            </p>
             <button onClick={() => setFeedback(prev => ({...prev, isOpen: false}))} className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest">Continuar</button>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal for New Unit Creation */}
+      {/* MODAL DE EXCLUSÃO DEFINITIVA */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" />
+          <div className="bg-white dark:bg-slate-900 w-full max-md rounded-[48px] shadow-2xl relative z-10 border-4 border-red-500/20 p-12 text-center overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-red-600" />
+            <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8">
+              <ShieldAlert size={56} />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Ação Irreversível</h3>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">
+              Você está prestes a excluir permanentemente a unidade <span className="text-red-600 font-black">"{tenantToDelete?.name}"</span>.<br/><br/>
+              <span className="text-xs font-black bg-red-50 dark:bg-red-900/30 text-red-600 px-4 py-2 rounded-xl border border-red-100 dark:border-red-900">
+                TODOS OS SÓCIOS E MENSALIDADES SERÃO APAGADOS DO BANCO.
+              </span>
+            </p>
+            <div className="space-y-4">
+              <button 
+                disabled={isSubmitting}
+                onClick={finalizeTenantDeletion} 
+                className="w-full bg-red-600 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/30 flex items-center justify-center gap-3"
+              >
+                {isSubmitting ? <Loader2 className="animate-spin" /> : <><Trash2 size={18}/> Excluir de vez do Banco</>}
+              </button>
+              <button 
+                disabled={isSubmitting}
+                onClick={() => {setIsDeleteModalOpen(false); setTenantToDelete(null);}} 
+                className="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 py-5 rounded-[28px] font-black uppercase text-[11px] tracking-widest hover:bg-slate-200 transition-all"
+              >
+                Cancelar Operação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for New Unit */}
       {showCreationSuccess && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" />
@@ -378,7 +590,7 @@ export const AdminPainelView: React.FC = () => {
             </div>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-4">Unidade Criada!</h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 uppercase tracking-tight">
-              A unidade <span className="text-blue-600 font-black">{lastCreatedName}</span> foi registrada com sucesso e já está disponível para acesso.
+              A unidade <span className="text-blue-600 font-black">{lastCreatedName}</span> foi registrada com sucesso.
             </p>
             <button 
               onClick={() => {
@@ -402,13 +614,14 @@ export const AdminPainelView: React.FC = () => {
           ].map((s, idx) => (
             <div key={s.id} className="flex items-center flex-1">
               <button 
-                disabled={s.id === 'MIGRATE' && !activeTenant}
+                disabled={(s.id === 'MIGRATE' && !activeTenant) || isSubmitting}
                 onClick={() => setCurrentStep(s.id as AdminStep)}
                 className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-wider transition-all ${
                   currentStep === s.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'
                 } disabled:opacity-30`}
               >
-                <s.icon size={16} /> {s.label}
+                {isSubmitting && currentStep === s.id ? <Loader2 className="animate-spin" size={16} /> : <s.icon size={16} />} 
+                {s.label}
               </button>
               {idx < 2 && <ChevronRight size={14} className="mx-2 text-slate-200" />}
             </div>
@@ -439,14 +652,32 @@ export const AdminPainelView: React.FC = () => {
               <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-xl transition-all group">
                 <div className="flex justify-between items-start mb-6">
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl text-blue-600"><Globe size={24} /></div>
-                  <button onClick={() => {if(confirm('Excluir unidade?')) deleteTenant(t.id)}} className="text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                  <button 
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={(e) => { e.stopPropagation(); setTenantToDelete(t); setIsDeleteModalOpen(true); }} 
+                    className="text-slate-200 hover:text-red-500 transition-colors disabled:opacity-30 p-2"
+                    title="Excluir Unidade do Banco"
+                  >
+                    <Trash2 size={20} />
+                  </button>
                 </div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.name}</h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {t.id.split('-')[0]}...</p>
-                <button onClick={() => { setActiveTenant(t); setCurrentStep('MIGRATE'); }} className="w-full mt-6 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Configurar Unidade</button>
+                <button 
+                  disabled={isSubmitting}
+                  onClick={() => { setActiveTenant(t); setCurrentStep('MIGRATE'); }} 
+                  className="w-full mt-6 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50"
+                >
+                  Configurar Unidade
+                </button>
               </div>
             ))}
-            <button onClick={() => setCurrentStep('CREATE')} className="border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[40px] p-8 flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-600 hover:text-blue-600 transition-all min-h-[240px]">
+            <button 
+              disabled={isSubmitting}
+              onClick={() => setCurrentStep('CREATE')} 
+              className="border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[40px] p-8 flex flex-col items-center justify-center gap-4 text-slate-300 hover:border-blue-600 hover:text-blue-600 transition-all min-h-[240px] disabled:opacity-50"
+            >
               <Plus size={48} />
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">Adicionar Unidade</span>
             </button>
@@ -605,56 +836,21 @@ export const AdminPainelView: React.FC = () => {
                   </button>
                 </div>
               </div>
-            ) : activeTab === 'import-config' ? (
-              <div className="space-y-10">
-                {!pendingData ? (
-                  <div className="border-4 border-dashed border-amber-50 rounded-[40px] p-24 text-center group hover:border-amber-600 transition-all relative">
-                    <input type="file" accept=".json" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    <div className="w-24 h-24 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-amber-300 group-hover:text-amber-600 transition-all"><Upload size={40} /></div>
-                    <p className="text-sm font-black text-amber-400 uppercase tracking-widest">Migrar Configuração de Unidade</p>
-                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-2">Clique ou arraste o JSON exportado do sistema anterior</p>
-                  </div>
-                ) : (
-                  <div className="space-y-8 animate-in zoom-in-95">
-                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto p-4 bg-slate-50 rounded-[32px] border border-slate-100">
-                       {Object.entries(mapping).map(([old, target]) => (
-                         <div key={old} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                           <p className="text-[8px] font-black text-slate-400 uppercase truncate mb-1">{old}</p>
-                           <p className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1"><Check size={10}/> {target}</p>
-                         </div>
-                       ))}
-                     </div>
-                     <div className="flex gap-4">
-                        <button onClick={finalizeConfigMigration} disabled={isImporting} className="flex-1 bg-amber-600 text-white py-6 rounded-[28px] font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:bg-amber-700 transition-all shadow-xl">
-                          {isImporting ? <Loader2 className="animate-spin" /> : <><Save size={18}/> Processar {pendingData.length} Mapeamentos</>}
-                        </button>
-                        <button onClick={() => setPendingData(null)} className="px-12 py-6 rounded-[28px] border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancelar</button>
-                     </div>
-                  </div>
-                )}
-              </div>
-            ) : !pendingData ? (
-               <div className="border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[40px] p-24 text-center group hover:border-blue-600 transition-all relative">
-                 <input type="file" accept=".json" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                 <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300 group-hover:text-blue-600 transition-all"><Upload size={40} /></div>
-                 <p className="text-sm font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-900 transition-colors">Importar {activeTab === 'socios' ? 'Sócios' : 'Mensalidades'}</p>
-               </div>
             ) : (
               <div className="space-y-8 animate-in slide-in-from-bottom-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {Object.entries(mapping).map(([oldKey, newKey]) => (
-                    <div key={oldKey} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                      <p className="text-[8px] font-black text-slate-400 uppercase truncate mb-1">{oldKey}</p>
-                      <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-1"><Check size={10}/> {newKey}</p>
-                    </div>
-                  ))}
+                <div className="border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[40px] p-24 text-center group hover:border-blue-600 transition-all relative">
+                   <input type="file" accept=".json" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                   <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300 group-hover:text-blue-600 transition-all"><Upload size={40} /></div>
+                   <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Importar {activeTab === 'socios' ? 'Sócios' : 'Mensalidades'}</p>
                 </div>
-                <div className="flex gap-4">
-                  <button onClick={() => alert("Migração efetuada com sucesso (simulado)")} className="flex-1 bg-emerald-600 text-white py-6 rounded-[28px] font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all shadow-xl">
-                    <Database size={18}/> Processar {pendingData.length} Registros
-                  </button>
-                  <button onClick={() => setPendingData(null)} className="px-12 py-6 rounded-[28px] border border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancelar</button>
-                </div>
+                {pendingData && (
+                  <div className="flex gap-4">
+                    <button onClick={finalizeDataMigration} disabled={isImporting} className="flex-1 bg-emerald-600 text-white py-6 rounded-[28px] font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all shadow-xl">
+                      {isImporting ? <Loader2 className="animate-spin" /> : <><Database size={18}/> Processar {pendingData.length} Registros</>}
+                    </button>
+                    <button onClick={() => setPendingData(null)} className="px-12 py-6 rounded-[28px] border border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancelar</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

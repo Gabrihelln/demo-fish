@@ -276,9 +276,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
        syncData();
     },
     deleteTenant: async (id: string) => {
-       if (!supabase) return;
-       await supabase.from('tenants').delete().eq('id', id);
-       syncData();
+       if (!supabase) throw new Error("Conexão com a nuvem não disponível. Não é possível excluir remotamente.");
+       try {
+         // Limpeza completa de dados vinculados à unidade para evitar erros de FK
+         await supabase.from('mensalidades').delete().eq('tenant_id', id);
+         await supabase.from('socios').delete().eq('tenant_id', id);
+         await supabase.from('document_templates').delete().eq('tenant_id', id);
+         await supabase.from('generated_receipts').delete().eq('tenant_id', id);
+         await supabase.from('categories').delete().eq('tenant_id', id);
+         await supabase.from('localities').delete().eq('tenant_id', id);
+         await supabase.from('tenant_details').delete().eq('tenant_id', id);
+         await supabase.from('tenant_representatives').delete().eq('tenant_id', id);
+         
+         const { error } = await supabase.from('tenants').delete().eq('id', id);
+         if (error) throw error;
+         
+         await syncData();
+       } catch (e: any) {
+         console.error("Erro ao deletar unidade:", e);
+         throw new Error("Falha na exclusão: " + e.message);
+       }
     },
     saveTenantDetails: async (details: TenantDetails) => {
       if (!supabase) return;
